@@ -42,6 +42,11 @@ internal class TosuWebSocketClient : IDisposable, IAsyncDisposable
     public event EventHandler<string>? MessageReceived;
 
     /// <summary>
+    /// 二进制消息接收事件
+    /// </summary>
+    public event EventHandler<ReadOnlyMemory<byte>>? BinaryMessageReceived;
+
+    /// <summary>
     /// 是否已连接
     /// </summary>
     public bool IsConnected => _isConnected;
@@ -111,7 +116,8 @@ internal class TosuWebSocketClient : IDisposable, IAsyncDisposable
         _client = new WebsocketClient(_serverUri)
         {
             IsReconnectionEnabled = false, // 我们将手动处理重连
-            ErrorReconnectTimeout = TimeSpan.FromSeconds(5)
+            ErrorReconnectTimeout = TimeSpan.FromSeconds(5),
+            IsTextMessageConversionEnabled = false
         };
 
         // 设置事件处理程序
@@ -163,6 +169,27 @@ internal class TosuWebSocketClient : IDisposable, IAsyncDisposable
             catch (Exception ex)
             {
                 _logger.LogError(ex, "处理WebSocket消息时出错");
+            }
+        }
+        else if (message.MessageType == WebSocketMessageType.Binary)
+        {
+            try
+            {
+                // 处理二进制消息
+                if (message.Binary != null && BinaryMessageReceived != null)
+                {
+                    BinaryMessageReceived.Invoke(this, message.Binary);
+                }
+                else if (message.Binary != null && MessageReceived != null)
+                {
+                    // 如果没有注册二进制处理器，但有文本处理器，就转换为字符串
+                    string text = System.Text.Encoding.UTF8.GetString(message.Binary.ToArray());
+                    MessageReceived.Invoke(this, text);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "处理WebSocket二进制消息时出错");
             }
         }
     }

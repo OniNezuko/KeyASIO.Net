@@ -20,7 +20,6 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
     private readonly SemaphoreSlim _startStopLock = new(1, 1);
     private Task? _dataUpdateTask;
     private volatile TosuConnectionState _connectionState = TosuConnectionState.Disconnected;
-    private readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
     private bool _disposedValue;
     private OsuMemoryStatus _currentOsuStatus = OsuMemoryStatus.NotRunning;
     private BeatmapIdentifier? _currentBeatmap;
@@ -53,7 +52,7 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
         _processManager.ProcessReady += OnProcessReady;
         _processManager.ProcessExited += OnProcessExited;
         _webSocketClient.ConnectionChanged += OnWebSocketConnectionChanged;
-        _webSocketClient.MessageReceived += OnWebSocketMessageReceived;
+        _webSocketClient.BinaryMessageReceived += OnWebSocketMessageReceived;
     }
 
     /// <summary>
@@ -274,131 +273,254 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
         }
     }
 
-    private void OnWebSocketMessageReceived(object? sender, string message)
+    private void OnWebSocketMessageReceived(object? sender, ReadOnlyMemory<byte> messageData)
     {
         try
         {
-            ParseAndProcessMessage(message);
+            ParseAndProcessMessage(messageData);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"处理WebSocket消息时出错: {message}");
+            _logger.LogError(ex, "处理WebSocket二进制消息时出错");
         }
     }
 
-    private void ParseAndProcessMessage(string message)
+    private void ParseAndProcessMessage(ReadOnlyMemory<byte> messageData)
     {
         try
         {
-            // 解析为V2Response
-            var response = JsonSerializer.Deserialize<V2Response>(message, _jsonOptions);
-            if (response != null)
+            var reader = new Utf8JsonReader(messageData.Span);
+            
+            OsuMemoryStatus? newStatus = null;
+            string? beatmapFolder = null;
+            string? beatmapFile = null;
+            bool? isReplayMode = null;
+            int? mods = null;
+            string? playerName = null;
+            long? score = null;
+            int? combo = null;
+            int? playTime = null;
+
+            // 开始解析JSON
+            while (reader.Read())
             {
-                ProcessData(response);
+                // 只处理属性名称
+                if (reader.TokenType != JsonTokenType.PropertyName)
+                    continue;
+
+                string propertyName = reader.GetString();
+                
+                // 跳到属性值
+                reader.Read();
+                
+                switch (propertyName)
+                {
+                    case "state":
+                        if (reader.TokenType == JsonTokenType.StartObject)
+                        {
+                            // 处理state对象
+                            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                            {
+                                if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "number")
+                                {
+                                    reader.Read(); // 移到number值
+                                    if (reader.TokenType == JsonTokenType.Number)
+                                    {
+                                        long stateNumber = reader.GetInt64();
+                                        newStatus = ConvertStateToOsuStatus(stateNumber);
+                                    }
+                                }
+                            }
+                        }
+                        break;
+
+                    case "directPath":
+                        if (reader.TokenType == JsonTokenType.StartObject)
+                        {
+                            // 处理directPath对象
+                            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                            {
+                                if (reader.TokenType == JsonTokenType.PropertyName)
+                                {
+                                    string pathPropertyName = reader.GetString();
+                                    reader.Read(); // 移到属性值
+                                    
+                                    if (pathPropertyName == "beatmapFolder" && reader.TokenType == JsonTokenType.String)
+                                    {
+                                        beatmapFolder = reader.GetString();
+                                    }
+                                    else if (pathPropertyName == "beatmapFile" && reader.TokenType == JsonTokenType.String)
+                                    {
+                                        string fullPath = reader.GetString();
+                                        if (!string.IsNullOrEmpty(fullPath))
+                                        {
+                                            beatmapFile = Path.GetFileName(fullPath);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        break;
+
+                    case "settings":
+                        if (reader.TokenType == JsonTokenType.StartObject)
+                        {
+                            // 处理settings对象
+                            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                            {
+                                if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "replayUIVisible")
+                                {
+                                    reader.Read(); // 移到replayUIVisible值
+                                    if (reader.TokenType == JsonTokenType.True || reader.TokenType == JsonTokenType.False)
+                                    {
+                                        isReplayMode = reader.GetBoolean();
+                                    }
+                                }
+                            }
+                        }
+                        break;
+
+                    case "play":
+                        if (reader.TokenType == JsonTokenType.StartObject)
+                        {
+                            // 处理play对象
+                            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                            {
+                                if (reader.TokenType == JsonTokenType.PropertyName)
+                                {
+                                    string playPropertyName = reader.GetString();
+                                    reader.Read(); // 移到属性值
+                                    
+                                    if (playPropertyName == "playerName" && reader.TokenType == JsonTokenType.String)
+                                    {
+                                        playerName = reader.GetString();
+                                    }
+                                    else if (playPropertyName == "score" && reader.TokenType == JsonTokenType.Number)
+                                    {
+                                        score = reader.GetInt64();
+                                    }
+                                    else if (playPropertyName == "mods" && reader.TokenType == JsonTokenType.StartObject)
+                                    {
+                                        // 处理mods对象
+                                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                                        {
+                                            if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "number")
+                                            {
+                                                reader.Read(); // 移到number值
+                                                if (reader.TokenType == JsonTokenType.Number)
+                                                {
+                                                    mods = (int)reader.GetInt64();
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else if (playPropertyName == "combo" && reader.TokenType == JsonTokenType.StartObject)
+                                    {
+                                        // 处理combo对象
+                                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                                        {
+                                            if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "current")
+                                            {
+                                                reader.Read(); // 移到current值
+                                                if (reader.TokenType == JsonTokenType.Number)
+                                                {
+                                                    combo = reader.GetInt32();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        break;
+
+                    case "beatmap":
+                        if (reader.TokenType == JsonTokenType.StartObject)
+                        {
+                            // 处理beatmap对象
+                            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                            {
+                                if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "time")
+                                {
+                                    reader.Read(); // 移到time对象
+                                    if (reader.TokenType == JsonTokenType.StartObject)
+                                    {
+                                        // 处理time对象
+                                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                                        {
+                                            if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "live")
+                                            {
+                                                reader.Read(); // 移到live值
+                                                if (reader.TokenType == JsonTokenType.Number)
+                                                {
+                                                    playTime = reader.GetInt32();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                }
             }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"解析和处理JSON响应时出错");
-        }
-    }
 
-    private void ProcessData(V2Response response)
-    {
-        // 处理osu状态更新
-        if (response.State != null)
-        {
-            var newStatus = ConvertStateToOsuStatus(response.State.Number);
-            if (_currentOsuStatus != newStatus)
+            // 更新MemoryReadObject
+            if (newStatus.HasValue && _currentOsuStatus != newStatus.Value)
             {
-                var oldStatus = _currentOsuStatus;
-                _currentOsuStatus = newStatus;
-                _memoryReadObject.OsuStatus = newStatus;
+                _currentOsuStatus = newStatus.Value;
+                _memoryReadObject.OsuStatus = newStatus.Value;
             }
-        }
 
-        // 处理谱面信息
-        if (response.Beatmap != null && response.DirectPath != null)
-        {
-            var beatmap = response.Beatmap;
-            var directPath = response.DirectPath;
-
-            string folder = directPath.BeatmapFolder ?? string.Empty;
-            string file = directPath.BeatmapFile != null ? Path.GetFileName(directPath.BeatmapFile) : string.Empty;
-
-            if (!string.IsNullOrEmpty(folder) && !string.IsNullOrEmpty(file))
+            if (!string.IsNullOrEmpty(beatmapFolder) && !string.IsNullOrEmpty(beatmapFile))
             {
-                var newBeatmap = new BeatmapIdentifier(folder, file);
-
+                var newBeatmap = new BeatmapIdentifier(beatmapFolder, beatmapFile);
                 if (!newBeatmap.Equals(_currentBeatmap))
                 {
                     _currentBeatmap = newBeatmap;
                     _memoryReadObject.BeatmapIdentifier = newBeatmap;
                 }
             }
-        }
 
-        // 处理是否处于回放模式
-        if (response.Settings != null)
-        {
-            var isReplay = response.Settings.ReplayUiVisible;
-            if (_isReplay != isReplay)
+            if (isReplayMode.HasValue && _isReplay != isReplayMode.Value)
             {
-                _isReplay = isReplay;
-                _memoryReadObject.IsReplay = isReplay;
+                _isReplay = isReplayMode.Value;
+                _memoryReadObject.IsReplay = isReplayMode.Value;
             }
-        }
 
-        // 处理MOD信息
-        if (response.Play?.Mods?.Number != null)
-        {
-            var newMods = (int)response.Play.Mods.Number;
-            if (_currentMods != newMods)
+            if (mods.HasValue && _currentMods != mods.Value)
             {
-                _currentMods = newMods;
+                _currentMods = mods.Value;
                 _memoryReadObject.Mods = (Mods)_currentMods;
             }
-        }
 
-        // 处理玩家信息
-        if (response.Play != null)
-        {
-            // 处理玩家名称
-            if (!string.IsNullOrEmpty(response.Play.PlayerName) && _playerName != response.Play.PlayerName)
+            if (!string.IsNullOrEmpty(playerName) && _playerName != playerName)
             {
-                _playerName = response.Play.PlayerName;
+                _playerName = playerName;
                 _memoryReadObject.PlayerName = _playerName;
             }
 
-            // 处理分数
-            if (response.Play.Score != _currentScore)
+            if (score.HasValue && _currentScore != score.Value)
             {
-                _currentScore = response.Play.Score;
+                _currentScore = score.Value;
                 _memoryReadObject.Score = _currentScore;
             }
 
-            // 处理连击
-            if (response.Play.Combo != null)
+            if (combo.HasValue && _currentCombo != combo.Value)
             {
-                var combo = response.Play.Combo;
-
-                if (combo.Current != _currentCombo)
-                {
-                    _currentCombo = combo.Current;
-                    _memoryReadObject.Combo = _currentCombo;
-                }
+                _currentCombo = combo.Value;
+                _memoryReadObject.Combo = _currentCombo;
             }
-        }
 
-        // 处理时间
-        if (response.Beatmap?.Time != null)
-        {
-            var time = response.Beatmap.Time;
-            if (time.Live != _lastPlayTime)
+            if (playTime.HasValue && _lastPlayTime != playTime.Value)
             {
-                _lastPlayTime = time.Live;
+                _lastPlayTime = playTime.Value;
                 _memoryReadObject.PlayingTime = _lastPlayTime;
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "解析和处理二进制JSON响应时出错");
         }
     }
 
@@ -451,7 +573,7 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
                 _processManager.ProcessReady -= OnProcessReady;
                 _processManager.ProcessExited -= OnProcessExited;
                 _webSocketClient.ConnectionChanged -= OnWebSocketConnectionChanged;
-                _webSocketClient.MessageReceived -= OnWebSocketMessageReceived;
+                _webSocketClient.BinaryMessageReceived -= OnWebSocketMessageReceived;
                 _processManager.Dispose();
                 _webSocketClient.Dispose();
             }
@@ -478,7 +600,7 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
             _processManager.ProcessReady -= OnProcessReady;
             _processManager.ProcessExited -= OnProcessExited;
             _webSocketClient.ConnectionChanged -= OnWebSocketConnectionChanged;
-            _webSocketClient.MessageReceived -= OnWebSocketMessageReceived;
+            _webSocketClient.BinaryMessageReceived -= OnWebSocketMessageReceived;
             await _processManager.DisposeAsync();
             await _webSocketClient.DisposeAsync();
 
