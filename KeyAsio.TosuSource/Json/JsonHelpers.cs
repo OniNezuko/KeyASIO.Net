@@ -14,7 +14,7 @@ public static class JsonHelpers
     /// <param name="reader">JSON读取器，定位在值上</param>
     /// <returns>处理结果，包含值和是否有值的标志</returns>
     public delegate (T value, bool hasValue) ValueExtractor<T>(ref Utf8JsonReader reader);
-    
+
     /// <summary>
     /// 委托定义：处理提取的值
     /// </summary>
@@ -41,17 +41,18 @@ public static class JsonHelpers
     /// <param name="handlers">值处理器映射</param>
     /// <param name="pathTracker">JSON路径追踪器</param>
     /// <param name="skipStartToken">是否跳过起始标记（对嵌套调用有用）</param>
-    private static void ParseElement(ref Utf8JsonReader reader, ValueHandlerMapping handlers, JsonPathTracker pathTracker, bool skipStartToken)
+    private static void ParseElement(ref Utf8JsonReader reader, ValueHandlerMapping handlers,
+        JsonPathTracker pathTracker, bool skipStartToken)
     {
         if (!skipStartToken && !reader.Read())
             return;
 
         // 确定是否为对象（否则为数组）
         bool isObject = reader.TokenType == JsonTokenType.StartObject;
-        
+
         // 数组索引（仅用于数组）
         int arrayIndex = 0;
-        
+
         // 当前属性名（仅用于对象）
         ReadOnlySpan<byte> currentProperty = default;
 
@@ -66,6 +67,7 @@ public static class JsonHelpers
                     {
                         pathTracker.PushProperty(currentProperty);
                     }
+
                     break;
 
                 case JsonTokenType.StartObject:
@@ -83,6 +85,7 @@ public static class JsonHelpers
                         SkipValue(ref reader);
                         depth--; // 减少深度，因为SkipValue已经处理了这个数组
                     }
+
                     break;
 
                 case JsonTokenType.EndObject:
@@ -92,6 +95,7 @@ public static class JsonHelpers
                     {
                         pathTracker.Pop(); // 退出当前对象，弹出最后一个属性
                     }
+
                     break;
 
                 default:
@@ -107,6 +111,7 @@ public static class JsonHelpers
                         // 数组元素处理（如果需要）
                         arrayIndex++;
                     }
+
                     break;
             }
         }
@@ -118,17 +123,17 @@ public static class JsonHelpers
     /// <param name="reader">JSON读取器</param>
     public static void SkipValue(ref Utf8JsonReader reader)
     {
-        if (reader.TokenType == JsonTokenType.StartObject || reader.TokenType == JsonTokenType.StartArray)
+        if (reader.TokenType is JsonTokenType.StartObject or JsonTokenType.StartArray)
         {
             int depth = 1;
-            
+
             while (depth > 0 && reader.Read())
             {
-                if (reader.TokenType == JsonTokenType.StartObject || reader.TokenType == JsonTokenType.StartArray)
+                if (reader.TokenType is JsonTokenType.StartObject or JsonTokenType.StartArray)
                 {
                     depth++;
                 }
-                else if (reader.TokenType == JsonTokenType.EndObject || reader.TokenType == JsonTokenType.EndArray)
+                else if (reader.TokenType is JsonTokenType.EndObject or JsonTokenType.EndArray)
                 {
                     depth--;
                 }

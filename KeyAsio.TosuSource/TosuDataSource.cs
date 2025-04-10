@@ -255,7 +255,7 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
 
         _valueHandlers.AddHandler("settings.replayUIVisible", (ref Utf8JsonReader r) =>
         {
-            if (r.TokenType == JsonTokenType.True || r.TokenType == JsonTokenType.False)
+            if (r.TokenType is JsonTokenType.True or JsonTokenType.False)
             {
                 return (value: r.GetBoolean(), hasValue: true);
             }

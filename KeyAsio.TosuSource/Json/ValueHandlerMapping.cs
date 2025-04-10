@@ -10,13 +10,13 @@ public class ValueHandlerMapping
 {
     // 路径部分的最大长度
     private const int MaxPathPartLength = 64;
-    
+
     // 存储路径处理器的数组
     private readonly List<HandlerEntry> _handlers = new List<HandlerEntry>();
-    
+
     // 预分配的缓冲区，用于转换路径部分
     private readonly byte[] _byteBuffer = new byte[MaxPathPartLength];
-    
+
     // 存储上次处理的值，用于处理相关字段
     private readonly Dictionary<string, object> _processedValues = new Dictionary<string, object>();
 
@@ -26,7 +26,8 @@ public class ValueHandlerMapping
     /// <param name="path">点分隔的路径，如 "state.number"</param>
     /// <param name="extractor">值提取器</param>
     /// <param name="processor">值处理器</param>
-    public void AddHandler<T>(string path, JsonHelpers.ValueExtractor<T> extractor, JsonHelpers.ValueProcessor<T> processor)
+    public void AddHandler<T>(string path, JsonHelpers.ValueExtractor<T> extractor,
+        JsonHelpers.ValueProcessor<T> processor)
     {
         if (string.IsNullOrEmpty(path) || extractor == null)
             return;
@@ -40,28 +41,28 @@ public class ValueHandlerMapping
             Path = path,
             HandlerType = typeof(T)
         };
-        
+
         for (int i = 0; i < parts.Length; i++)
         {
             // 获取部分的UTF8字节表示
             int byteCount = Encoding.UTF8.GetBytes(parts[i], _byteBuffer);
-            
+
             // 分配并复制到目标数组
             entry.PathParts[i] = new byte[byteCount];
             Buffer.BlockCopy(_byteBuffer, 0, entry.PathParts[i], 0, byteCount);
             entry.PathLengths[i] = byteCount;
         }
-        
+
         // 存储强类型处理器
         entry.ExtractorAndProcessor = new ExtractorProcessor<T>
         {
             Extractor = extractor,
             Processor = processor
         };
-        
+
         _handlers.Add(entry);
     }
-    
+
     /// <summary>
     /// 获取上次处理的特定路径的值
     /// </summary>
@@ -74,9 +75,10 @@ public class ValueHandlerMapping
         {
             return typedValue;
         }
+
         return default;
     }
-    
+
     /// <summary>
     /// 重置所有处理过的值
     /// </summary>
@@ -99,21 +101,22 @@ public class ValueHandlerMapping
                 if (entry.ExtractorAndProcessor is IExtractorProcessor processor)
                 {
                     processor.Extract(ref reader, out var result);
-                    
+
                     // 存储处理的值
                     if (result != null)
                     {
                         _processedValues[entry.Path] = result;
                     }
-                    
+
                     // 处理提取的值
                     processor.Process(result);
                 }
+
                 break;
             }
         }
     }
-    
+
     /// <summary>
     /// 检查路径是否匹配
     /// </summary>
@@ -121,18 +124,18 @@ public class ValueHandlerMapping
     {
         if (entry.PathParts.Length != pathTracker.Depth)
             return false;
-            
+
         for (int i = 0; i < entry.PathParts.Length; i++)
         {
             ReadOnlySpan<byte> trackerPart = pathTracker[i];
             ReadOnlySpan<byte> entryPart = new ReadOnlySpan<byte>(entry.PathParts[i], 0, entry.PathLengths[i]);
-            
+
             if (!trackerPart.SequenceEqual(entryPart))
             {
                 return false;
             }
         }
-        
+
         return true;
     }
 
@@ -144,7 +147,7 @@ public class ValueHandlerMapping
         void Extract(ref Utf8JsonReader reader, out object result);
         void Process(object value);
     }
-    
+
     /// <summary>
     /// 泛型提取器和处理器，包装了强类型的处理委托
     /// </summary>
@@ -152,7 +155,7 @@ public class ValueHandlerMapping
     {
         public JsonHelpers.ValueExtractor<T> Extractor { get; set; }
         public JsonHelpers.ValueProcessor<T> Processor { get; set; }
-        
+
         public void Extract(ref Utf8JsonReader reader, out object result)
         {
             var extracted = Extractor(ref reader);
@@ -165,7 +168,7 @@ public class ValueHandlerMapping
                 result = null;
             }
         }
-        
+
         public void Process(object value)
         {
             if (value is T typedValue)
@@ -178,7 +181,7 @@ public class ValueHandlerMapping
             }
         }
     }
-    
+
     /// <summary>
     /// 处理器条目
     /// </summary>
