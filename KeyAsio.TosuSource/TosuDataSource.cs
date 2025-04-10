@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using KeyAsio.MemoryReading;
 using KeyAsio.MemoryReading.Logging;
@@ -12,6 +11,8 @@ namespace KeyAsio.TosuSource;
 /// </summary>
 public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
 {
+    #region 私有字段
+
     private readonly ILogger _logger;
     private readonly TosuDataSourceOptions _options;
     private readonly TosuProcessManager _processManager;
@@ -23,6 +24,11 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
     private Task? _dataUpdateTask;
     private volatile TosuConnectionState _connectionState = TosuConnectionState.Disconnected;
     private bool _disposedValue;
+
+    #endregion
+
+    #region 状态相关字段
+
     private OsuMemoryStatus _currentOsuStatus = OsuMemoryStatus.NotRunning;
     private BeatmapIdentifier? _currentBeatmap;
     private int _lastPlayTime;
@@ -32,11 +38,35 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
     private string _playerName = string.Empty;
     private bool _isReplay;
 
-    /// <summary>
-    /// 创建tosu数据源
-    /// </summary>
-    /// <param name="options">配置选项</param>
-    /// <param name="logger">日志记录器</param>
+    #endregion
+
+    #region 公共属性
+
+    public TosuConnectionState ConnectionState
+    {
+        get => _connectionState;
+        private set
+        {
+            if (_connectionState != value)
+            {
+                _connectionState = value;
+                ConnectionStateChanged?.Invoke(this, value);
+            }
+        }
+    }
+
+    public MemoryReadObject MemoryReadObject => _memoryReadObject;
+
+    #endregion
+
+    #region 事件
+
+    public event EventHandler<TosuConnectionState>? ConnectionStateChanged;
+
+    #endregion
+
+    #region 构造函数
+
     public TosuDataSource(TosuDataSourceOptions options, ILogger logger)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -55,183 +85,16 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
         _processManager.ProcessExited += OnProcessExited;
         _webSocketClient.ConnectionChanged += OnWebSocketConnectionChanged;
         _webSocketClient.BinaryMessageReceived += OnWebSocketMessageReceived;
-        
+
         // 初始化JSON值处理器映射
         _valueHandlers = new ValueHandlerMapping();
         InitializeValueHandlers();
     }
-    
-    /// <summary>
-    /// 初始化JSON路径处理器
-    /// </summary>
-    private void InitializeValueHandlers()
-    {
-        // 添加路径处理器，只需在构造函数中注册一次
-        _valueHandlers.AddHandler("state.number", (ref Utf8JsonReader r) => {
-            if (r.TokenType == JsonTokenType.Number)
-            {
-                long stateNumber = r.GetInt64();
-                return (value: ConvertStateToOsuStatus(stateNumber), hasValue: true);
-            }
-            return (value: OsuMemoryStatus.NotRunning, hasValue: false);
-        }, value => {
-            if (value.hasValue && _currentOsuStatus != value.value)
-            {
-                _currentOsuStatus = value.value;
-                _memoryReadObject.OsuStatus = value.value;
-            }
-        });
-        
-        _valueHandlers.AddHandler("directPath.beatmapFolder", (ref Utf8JsonReader r) => {
-            if (r.TokenType == JsonTokenType.String)
-            {
-                return (value: r.GetString(), hasValue: true);
-            }
-            return (value: null, hasValue: false);
-        }, value => {
-            // 处理在beatmapFile处理程序中完成
-        });
-        
-        _valueHandlers.AddHandler("directPath.beatmapFile", (ref Utf8JsonReader r) => {
-            if (r.TokenType == JsonTokenType.String)
-            {
-                string fullPath = r.GetString();
-                if (!string.IsNullOrEmpty(fullPath))
-                {
-                    return (value: Path.GetFileName(fullPath), hasValue: true);
-                }
-            }
-            return (value: null, hasValue: false);
-        }, value => {
-            // 从已处理的值中获取文件夹和文件名
-            string folder = _valueHandlers.GetLastProcessedValue<string>("directPath.beatmapFolder");
-            string file = value.value;
-            
-            if (!string.IsNullOrEmpty(folder) && !string.IsNullOrEmpty(file))
-            {
-                var newBeatmap = new BeatmapIdentifier(folder, file);
-                if (!newBeatmap.Equals(_currentBeatmap))
-                {
-                    _currentBeatmap = newBeatmap;
-                    _memoryReadObject.BeatmapIdentifier = newBeatmap;
-                }
-            }
-        });
-        
-        _valueHandlers.AddHandler("settings.replayUIVisible", (ref Utf8JsonReader r) => {
-            if (r.TokenType == JsonTokenType.True || r.TokenType == JsonTokenType.False)
-            {
-                return (value: r.GetBoolean(), hasValue: true);
-            }
-            return (value: false, hasValue: false);
-        }, value => {
-            if (value.hasValue && _isReplay != value.value)
-            {
-                _isReplay = value.value;
-                _memoryReadObject.IsReplay = value.value;
-            }
-        });
-        
-        _valueHandlers.AddHandler("play.playerName", (ref Utf8JsonReader r) => {
-            if (r.TokenType == JsonTokenType.String)
-            {
-                return (value: r.GetString(), hasValue: true);
-            }
-            return (value: null, hasValue: false);
-        }, value => {
-            if (value.hasValue && !string.IsNullOrEmpty(value.value) && _playerName != value.value)
-            {
-                _playerName = value.value;
-                _memoryReadObject.PlayerName = _playerName;
-            }
-        });
-        
-        _valueHandlers.AddHandler("play.score", (ref Utf8JsonReader r) => {
-            if (r.TokenType == JsonTokenType.Number)
-            {
-                return (value: r.GetInt64(), hasValue: true);
-            }
-            return (value: 0L, hasValue: false);
-        }, value => {
-            if (value.hasValue && _currentScore != value.value)
-            {
-                _currentScore = value.value;
-                _memoryReadObject.Score = _currentScore;
-            }
-        });
-        
-        _valueHandlers.AddHandler("play.mods.number", (ref Utf8JsonReader r) => {
-            if (r.TokenType == JsonTokenType.Number)
-            {
-                return (value: (int)r.GetInt64(), hasValue: true);
-            }
-            return (value: 0, hasValue: false);
-        }, value => {
-            if (value.hasValue && _currentMods != value.value)
-            {
-                _currentMods = value.value;
-                _memoryReadObject.Mods = (Mods)_currentMods;
-            }
-        });
-        
-        _valueHandlers.AddHandler("play.combo.current", (ref Utf8JsonReader r) => {
-            if (r.TokenType == JsonTokenType.Number)
-            {
-                return (value: r.GetInt32(), hasValue: true);
-            }
-            return (value: 0, hasValue: false);
-        }, value => {
-            if (value.hasValue && _currentCombo != value.value)
-            {
-                _currentCombo = value.value;
-                _memoryReadObject.Combo = _currentCombo;
-            }
-        });
-        
-        _valueHandlers.AddHandler("beatmap.time.live", (ref Utf8JsonReader r) => {
-            if (r.TokenType == JsonTokenType.Number)
-            {
-                return (value: r.GetInt32(), hasValue: true);
-            }
-            return (value: 0, hasValue: false);
-        }, value => {
-            if (value.hasValue && _lastPlayTime != value.value)
-            {
-                _lastPlayTime = value.value;
-                _memoryReadObject.PlayingTime = _lastPlayTime;
-            }
-        });
-    }
 
-    /// <summary>
-    /// 连接状态
-    /// </summary>
-    public TosuConnectionState ConnectionState
-    {
-        get => _connectionState;
-        private set
-        {
-            if (_connectionState != value)
-            {
-                _connectionState = value;
-                ConnectionStateChanged?.Invoke(this, value);
-            }
-        }
-    }
+    #endregion
 
-    /// <summary>
-    /// 连接状态改变事件
-    /// </summary>
-    public event EventHandler<TosuConnectionState>? ConnectionStateChanged;
+    #region 公共方法
 
-    /// <summary>
-    /// 内存读取对象
-    /// </summary>
-    public MemoryReadObject MemoryReadObject => _memoryReadObject;
-
-    /// <summary>
-    /// 启动tosu数据源
-    /// </summary>
     public async Task StartAsync()
     {
         await _startStopLock.WaitAsync();
@@ -270,9 +133,6 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
         }
     }
 
-    /// <summary>
-    /// 停止tosu数据源
-    /// </summary>
     public async Task StopAsync()
     {
         await _startStopLock.WaitAsync();
@@ -325,6 +185,180 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
             _startStopLock.Release();
         }
     }
+
+    #endregion
+
+    #region 私有方法 - 初始化相关
+
+    private void InitializeValueHandlers()
+    {
+        // 添加路径处理器，只需在构造函数中注册一次
+        _valueHandlers.AddHandler("state.number", (ref Utf8JsonReader r) =>
+        {
+            if (r.TokenType == JsonTokenType.Number)
+            {
+                long stateNumber = r.GetInt64();
+                return (value: ConvertStateToOsuStatus(stateNumber), hasValue: true);
+            }
+
+            return (value: OsuMemoryStatus.NotRunning, hasValue: false);
+        }, value =>
+        {
+            if (value.hasValue && _currentOsuStatus != value.value)
+            {
+                _currentOsuStatus = value.value;
+                _memoryReadObject.OsuStatus = value.value;
+            }
+        });
+
+        _valueHandlers.AddHandler("directPath.beatmapFolder", (ref Utf8JsonReader r) =>
+        {
+            if (r.TokenType == JsonTokenType.String)
+            {
+                return (value: r.GetString(), hasValue: true);
+            }
+
+            return (value: null, hasValue: false);
+        }, value =>
+        {
+            // 处理在beatmapFile处理程序中完成
+        });
+
+        _valueHandlers.AddHandler("directPath.beatmapFile", (ref Utf8JsonReader r) =>
+        {
+            if (r.TokenType == JsonTokenType.String)
+            {
+                string fullPath = r.GetString();
+                if (!string.IsNullOrEmpty(fullPath))
+                {
+                    return (value: Path.GetFileName(fullPath), hasValue: true);
+                }
+            }
+
+            return (value: null, hasValue: false);
+        }, value =>
+        {
+            // 从已处理的值中获取文件夹和文件名
+            string folder = _valueHandlers.GetLastProcessedValue<string>("directPath.beatmapFolder");
+            string file = value.value;
+
+            if (!string.IsNullOrEmpty(folder) && !string.IsNullOrEmpty(file))
+            {
+                var newBeatmap = new BeatmapIdentifier(folder, file);
+                if (!newBeatmap.Equals(_currentBeatmap))
+                {
+                    _currentBeatmap = newBeatmap;
+                    _memoryReadObject.BeatmapIdentifier = newBeatmap;
+                }
+            }
+        });
+
+        _valueHandlers.AddHandler("settings.replayUIVisible", (ref Utf8JsonReader r) =>
+        {
+            if (r.TokenType == JsonTokenType.True || r.TokenType == JsonTokenType.False)
+            {
+                return (value: r.GetBoolean(), hasValue: true);
+            }
+
+            return (value: false, hasValue: false);
+        }, value =>
+        {
+            if (value.hasValue && _isReplay != value.value)
+            {
+                _isReplay = value.value;
+                _memoryReadObject.IsReplay = value.value;
+            }
+        });
+
+        _valueHandlers.AddHandler("play.playerName", (ref Utf8JsonReader r) =>
+        {
+            if (r.TokenType == JsonTokenType.String)
+            {
+                return (value: r.GetString(), hasValue: true);
+            }
+
+            return (value: null, hasValue: false);
+        }, value =>
+        {
+            if (value.hasValue && !string.IsNullOrEmpty(value.value) && _playerName != value.value)
+            {
+                _playerName = value.value;
+                _memoryReadObject.PlayerName = _playerName;
+            }
+        });
+
+        _valueHandlers.AddHandler("play.score", (ref Utf8JsonReader r) =>
+        {
+            if (r.TokenType == JsonTokenType.Number)
+            {
+                return (value: r.GetInt64(), hasValue: true);
+            }
+
+            return (value: 0L, hasValue: false);
+        }, value =>
+        {
+            if (value.hasValue && _currentScore != value.value)
+            {
+                _currentScore = value.value;
+                _memoryReadObject.Score = _currentScore;
+            }
+        });
+
+        _valueHandlers.AddHandler("play.mods.number", (ref Utf8JsonReader r) =>
+        {
+            if (r.TokenType == JsonTokenType.Number)
+            {
+                return (value: (int)r.GetInt64(), hasValue: true);
+            }
+
+            return (value: 0, hasValue: false);
+        }, value =>
+        {
+            if (value.hasValue && _currentMods != value.value)
+            {
+                _currentMods = value.value;
+                _memoryReadObject.Mods = (Mods)_currentMods;
+            }
+        });
+
+        _valueHandlers.AddHandler("play.combo.current", (ref Utf8JsonReader r) =>
+        {
+            if (r.TokenType == JsonTokenType.Number)
+            {
+                return (value: r.GetInt32(), hasValue: true);
+            }
+
+            return (value: 0, hasValue: false);
+        }, value =>
+        {
+            if (value.hasValue && _currentCombo != value.value)
+            {
+                _currentCombo = value.value;
+                _memoryReadObject.Combo = _currentCombo;
+            }
+        });
+
+        _valueHandlers.AddHandler("beatmap.time.live", (ref Utf8JsonReader r) =>
+        {
+            if (r.TokenType == JsonTokenType.Number)
+            {
+                return (value: r.GetInt32(), hasValue: true);
+            }
+
+            return (value: 0, hasValue: false);
+        }, value =>
+        {
+            if (value.hasValue && _lastPlayTime != value.value)
+            {
+                _lastPlayTime = value.value;
+                _memoryReadObject.PlayingTime = _lastPlayTime;
+            }
+        });
+    }
+
+    #endregion
+
+    #region 私有方法 - 事件处理
 
     private async void OnProcessReady(object? sender, int port)
     {
@@ -386,9 +420,6 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
         {
             _logger.LogInformation("已连接到tosu WebSocket服务器");
             ConnectionState = TosuConnectionState.Connected;
-
-            // 启动数据更新任务
-            _dataUpdateTask = Task.Run(DataUpdateLoopAsync, _cts.Token);
         }
         else
         {
@@ -433,25 +464,9 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
         }
     }
 
-    /// <summary>
-    /// 供测试使用的方法，解析并处理WebSocket消息
-    /// </summary>
-    /// <param name="messageData">二进制消息数据</param>
-    internal void ParseAndProcessMessageForTest(ReadOnlyMemory<byte> messageData)
-    {
-        ParseAndProcessMessage(messageData);
-    }
+    #endregion
 
-    /// <summary>
-    /// 供测试使用的方法，获取当前的值
-    /// </summary>
-    /// <returns>当前的状态值元组</returns>
-    internal (OsuMemoryStatus Status, string PlayerName, long Score, int Combo, int PlayTime, string? BeatmapFolder, string? BeatmapFile) GetCurrentValuesForTest()
-    {
-        string? folder = _currentBeatmap?.Folder;
-        string? file = _currentBeatmap?.Filename;
-        return (_currentOsuStatus, _playerName, _currentScore, _currentCombo, _lastPlayTime, folder, file);
-    }
+    #region 私有方法 - 数据处理
 
     private void ParseAndProcessMessage(ReadOnlyMemory<byte> messageData)
     {
@@ -461,7 +476,7 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
 
             // 重置处理器值，准备新一轮解析
             _valueHandlers.ResetProcessedValues();
-            
+
             // 解析JSON并处理注册的路径
             JsonHelpers.ParseDocument(ref reader, _valueHandlers);
         }
@@ -484,29 +499,26 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
         };
     }
 
-    private async Task DataUpdateLoopAsync()
-    {
-        try
-        {
-            while (!_cts.IsCancellationRequested)
-            {
-                // 等待指定的更新间隔
-                await Task.Delay(_options.UpdateIntervalMs, _cts.Token);
+    #endregion
 
-                // 此处不需要主动请求数据，因为tosu会主动推送数据
-                // 我们只需要处理接收到的数据
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // 正常取消，不需要处理
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "数据更新循环中发生错误");
-            ConnectionState = TosuConnectionState.Error;
-        }
+    #region 测试相关方法
+
+    internal void ParseAndProcessMessageForTest(ReadOnlyMemory<byte> messageData)
+    {
+        ParseAndProcessMessage(messageData);
     }
+
+    internal (OsuMemoryStatus Status, string PlayerName, long Score, int Combo, int PlayTime, string? BeatmapFolder,
+        string? BeatmapFile) GetCurrentValuesForTest()
+    {
+        string? folder = _currentBeatmap?.Folder;
+        string? file = _currentBeatmap?.Filename;
+        return (_currentOsuStatus, _playerName, _currentScore, _currentCombo, _lastPlayTime, folder, file);
+    }
+
+    #endregion
+
+    #region IDisposable实现
 
     protected virtual void Dispose(bool disposing)
     {
@@ -556,4 +568,6 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
 
         GC.SuppressFinalize(this);
     }
+
+    #endregion
 }
