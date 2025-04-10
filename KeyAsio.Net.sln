@@ -33,6 +33,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OsuMemoryDataProvider", "de
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeyAsio.TosuSource", "KeyAsio.TosuSource\KeyAsio.TosuSource.csproj", "{97FA57A6-E702-4F13-9864-3DF3B0684172}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TosuDataSourceTest", "Tests\TosuDataSourceTest\TosuDataSourceTest.csproj", "{107D4D30-2314-40BC-B3BF-415C3CBC554F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -187,6 +189,18 @@ Global
 		{97FA57A6-E702-4F13-9864-3DF3B0684172}.Release|x64.Build.0 = Release|Any CPU
 		{97FA57A6-E702-4F13-9864-3DF3B0684172}.Release|x86.ActiveCfg = Release|Any CPU
 		{97FA57A6-E702-4F13-9864-3DF3B0684172}.Release|x86.Build.0 = Release|Any CPU
+		{107D4D30-2314-40BC-B3BF-415C3CBC554F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{107D4D30-2314-40BC-B3BF-415C3CBC554F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{107D4D30-2314-40BC-B3BF-415C3CBC554F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{107D4D30-2314-40BC-B3BF-415C3CBC554F}.Debug|x64.Build.0 = Debug|Any CPU
+		{107D4D30-2314-40BC-B3BF-415C3CBC554F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{107D4D30-2314-40BC-B3BF-415C3CBC554F}.Debug|x86.Build.0 = Debug|Any CPU
+		{107D4D30-2314-40BC-B3BF-415C3CBC554F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{107D4D30-2314-40BC-B3BF-415C3CBC554F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{107D4D30-2314-40BC-B3BF-415C3CBC554F}.Release|x64.ActiveCfg = Release|Any CPU
+		{107D4D30-2314-40BC-B3BF-415C3CBC554F}.Release|x64.Build.0 = Release|Any CPU
+		{107D4D30-2314-40BC-B3BF-415C3CBC554F}.Release|x86.ActiveCfg = Release|Any CPU
+		{107D4D30-2314-40BC-B3BF-415C3CBC554F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -199,6 +213,7 @@ Global
 		{D7FDE67C-764A-4824-A65B-658F72612C06} = {3BA3090D-36C2-4B9A-B7FB-CA9A3F3600DE}
 		{CC2BA759-F53F-4ECD-8A72-FB05496870B1} = {63042D0D-CE64-4B9A-B030-99FBC7C2D87B}
 		{FC52840E-C7C6-4741-9DEA-AB286F7AE7F6} = {63042D0D-CE64-4B9A-B030-99FBC7C2D87B}
+		{107D4D30-2314-40BC-B3BF-415C3CBC554F} = {3BA3090D-36C2-4B9A-B7FB-CA9A3F3600DE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EEF979C8-6F73-4E7B-BA29-D8F8C0B3C90C}

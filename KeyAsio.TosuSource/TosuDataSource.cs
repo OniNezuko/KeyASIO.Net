@@ -285,6 +285,26 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 供测试使用的方法，解析并处理WebSocket消息
+    /// </summary>
+    /// <param name="messageData">二进制消息数据</param>
+    internal void ParseAndProcessMessageForTest(ReadOnlyMemory<byte> messageData)
+    {
+        ParseAndProcessMessage(messageData);
+    }
+
+    /// <summary>
+    /// 供测试使用的方法，获取当前的值
+    /// </summary>
+    /// <returns>当前的状态值元组</returns>
+    internal (OsuMemoryStatus Status, string PlayerName, long Score, int Combo, int PlayTime, string? BeatmapFolder, string? BeatmapFile) GetCurrentValuesForTest()
+    {
+        string? folder = _currentBeatmap?.Folder;
+        string? file = _currentBeatmap?.Filename;
+        return (_currentOsuStatus, _playerName, _currentScore, _currentCombo, _lastPlayTime, folder, file);
+    }
+
     private void ParseAndProcessMessage(ReadOnlyMemory<byte> messageData)
     {
         try
