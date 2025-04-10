@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using KeyAsio.MemoryReading.Logging;
 using KeyAsio.Shared;
@@ -6,7 +6,7 @@ using KeyAsio.TosuSource;
 using KeyAsio.TosuSource.Models;
 using OsuMemoryDataProvider;
 
-namespace TosuDataSourceTest;
+namespace TosuDataSourceConsoleTest;
 
 class Program
 {
@@ -25,7 +25,7 @@ class Program
         };
 
         // 运行基本测试
-        RunBasicTests(options, logger);
+        await RunBasicTests(options, logger);
 
         // 运行UTF8JsonReader性能测试
         RunUtf8JsonReaderTests();
@@ -34,14 +34,15 @@ class Program
         Console.ReadKey();
     }
 
-    static void RunBasicTests(TosuDataSourceOptions options, ILogger logger)
+    static async Task RunBasicTests(TosuDataSourceOptions options, ILogger logger)
     {
         Console.WriteLine("\n基本功能测试");
         Console.WriteLine("---------------------------");
 
         // 创建测试用TosuDataSource
         var dataSource = new TosuDataSource(options, logger);
-
+        await dataSource.StartAsync();
+        Console.ReadLine();
         // 测试MemoryReadObject事件
         TestMemoryReadObjectEvents(dataSource);
 

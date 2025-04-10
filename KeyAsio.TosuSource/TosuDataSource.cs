@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using KeyAsio.MemoryReading;
 using KeyAsio.MemoryReading.Logging;
@@ -308,6 +309,7 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
     {
         try
         {
+            var all = Encoding.UTF8.GetString(messageData.Span);
             var reader = new Utf8JsonReader(messageData.Span);
 
             OsuMemoryStatus? newStatus = null;
@@ -392,7 +394,7 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
                                 reader.Read(); // 移到replayUIVisible值
                                 if (reader.TokenType == JsonTokenType.True || reader.TokenType == JsonTokenType.False)
                                 {
-                                    isReplayMode = reader.GetBoolean();
+                                    //isReplayMode = reader.GetBoolean();
                                 }
                             }
                         }
@@ -410,7 +412,28 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
                                 ReadOnlySpan<byte> playPropertyName = reader.ValueSpan;
                                 reader.Read(); // 移到属性值
 
-                                if (playPropertyName.SequenceEqual("playerName"u8) && reader.TokenType == JsonTokenType.String)
+                                if (playPropertyName.SequenceEqual("mode"u8) && reader.TokenType == JsonTokenType.StartObject)
+                                {
+                                    // 处理mode对象
+                                    while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                                    {
+                                    }
+                                }
+                                else if (playPropertyName.SequenceEqual("healthBar"u8) && reader.TokenType == JsonTokenType.StartObject)
+                                {
+                                    // 处理healthBar对象
+                                    while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                                    {
+                                    }
+                                }
+                                else if (playPropertyName.SequenceEqual("hits"u8) && reader.TokenType == JsonTokenType.StartObject)
+                                {
+                                    // 处理hits对象
+                                    while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                                    {
+                                    }
+                                }
+                                else if (playPropertyName.SequenceEqual("playerName"u8) && reader.TokenType == JsonTokenType.String)
                                 {
                                     playerName = reader.GetString();
                                 }

@@ -68,7 +68,7 @@ internal class TosuWebSocketClient : IDisposable, IAsyncDisposable
             return;
         }
 
-        _serverUri = new Uri($"ws://127.0.0.1:{port}/ws");
+        _serverUri = new Uri($"ws://127.0.0.1:{port}/websocket/v2");
         _logger.LogInformation($"正在连接到tosu WebSocket服务器: {_serverUri}");
 
         try
