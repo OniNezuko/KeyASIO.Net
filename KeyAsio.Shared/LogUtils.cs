@@ -5,7 +5,6 @@ using KeyAsio.Shared.Configuration;
 using KeyAsio.Shared.Realtime;
 using KeyAsio.Shared.Utils;
 using Milki.Extensions.Configuration;
-using Sentry;
 
 namespace KeyAsio.Shared;
 

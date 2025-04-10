@@ -1,7 +1,6 @@
 using System.Text.Json;
 using KeyAsio.MemoryReading;
-using KeyAsio.TosuSource.Models;
-using Microsoft.Extensions.Logging;
+using KeyAsio.MemoryReading.Logging;
 using OsuMemoryDataProvider;
 
 namespace KeyAsio.TosuSource;
@@ -310,7 +309,7 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
         try
         {
             var reader = new Utf8JsonReader(messageData.Span);
-            
+
             OsuMemoryStatus? newStatus = null;
             string? beatmapFolder = null;
             string? beatmapFile = null;
@@ -330,10 +329,10 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
 
                 // 使用ValueSpan直接比较属性名，避免字符串分配
                 ReadOnlySpan<byte> propertyName = reader.ValueSpan;
-                
+
                 // 跳到属性值
                 reader.Read();
-                
+
                 if (propertyName.SequenceEqual("state"u8))
                 {
                     if (reader.TokenType == JsonTokenType.StartObject)
@@ -364,7 +363,7 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
                             {
                                 ReadOnlySpan<byte> pathPropertyName = reader.ValueSpan;
                                 reader.Read(); // 移到属性值
-                                
+
                                 if (pathPropertyName.SequenceEqual("beatmapFolder"u8) && reader.TokenType == JsonTokenType.String)
                                 {
                                     beatmapFolder = reader.GetString();
@@ -410,7 +409,7 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
                             {
                                 ReadOnlySpan<byte> playPropertyName = reader.ValueSpan;
                                 reader.Read(); // 移到属性值
-                                
+
                                 if (playPropertyName.SequenceEqual("playerName"u8) && reader.TokenType == JsonTokenType.String)
                                 {
                                     playerName = reader.GetString();

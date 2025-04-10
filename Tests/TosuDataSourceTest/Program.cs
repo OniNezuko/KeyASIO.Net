@@ -1,9 +1,9 @@
 using System.Text;
 using System.Text.Json;
-using KeyAsio.MemoryReading;
+using KeyAsio.MemoryReading.Logging;
+using KeyAsio.Shared;
 using KeyAsio.TosuSource;
 using KeyAsio.TosuSource.Models;
-using Microsoft.Extensions.Logging;
 using OsuMemoryDataProvider;
 
 namespace TosuDataSourceTest;
@@ -15,74 +15,66 @@ class Program
         Console.WriteLine("TosuDataSource 测试程序");
         Console.WriteLine("=============================");
 
-        // 创建日志工厂
-        using var loggerFactory = LoggerFactory.Create(builder =>
-        {
-            builder
-                .AddConsole()
-                .SetMinimumLevel(LogLevel.Debug);
-        });
-        
-        var logger = loggerFactory.CreateLogger<Program>();
-        
+        var logger = LogUtils.GetLogger<Program>();
+
         // 创建选项
         var options = new TosuDataSourceOptions
         {
             AutoStartTosuProcess = false, // 测试时不自动启动tosu
             UpdateIntervalMs = 100
         };
-        
+
         // 运行基本测试
         RunBasicTests(options, logger);
-        
+
         // 运行UTF8JsonReader性能测试
         RunUtf8JsonReaderTests();
-        
+
         Console.WriteLine("\n按任意键退出...");
         Console.ReadKey();
     }
-    
+
     static void RunBasicTests(TosuDataSourceOptions options, ILogger logger)
     {
         Console.WriteLine("\n基本功能测试");
         Console.WriteLine("---------------------------");
-        
+
         // 创建测试用TosuDataSource
         var dataSource = new TosuDataSource(options, logger);
-        
+
         // 测试MemoryReadObject事件
         TestMemoryReadObjectEvents(dataSource);
-        
+
         // 测试JSON解析
         TestJsonParsing(dataSource);
     }
-    
+
     static void TestMemoryReadObjectEvents(TosuDataSource dataSource)
     {
         Console.WriteLine("测试MemoryReadObject事件...");
-        
+
         var memoryReadObject = dataSource.MemoryReadObject;
-        
+
         // 注册事件处理器
-        memoryReadObject.OsuStatusChanged += (old, @new) => 
+        memoryReadObject.OsuStatusChanged += (old, @new) =>
             Console.WriteLine($"OsuStatus变更: {old} -> {@new}");
-        
-        memoryReadObject.ComboChanged += (old, @new) => 
+
+        memoryReadObject.ComboChanged += (old, @new) =>
             Console.WriteLine($"Combo变更: {old} -> {@new}");
-        
-        memoryReadObject.ScoreChanged += (old, @new) => 
+
+        memoryReadObject.ScoreChanged += (old, @new) =>
             Console.WriteLine($"分数变更: {old} -> {@new}");
-        
+
         // 设置属性
         memoryReadObject.OsuStatus = OsuMemoryStatus.Playing;
         memoryReadObject.Combo = 100;
         memoryReadObject.Score = 10000;
     }
-    
+
     static void TestJsonParsing(TosuDataSource dataSource)
     {
         Console.WriteLine("\n测试JSON解析...");
-        
+
         // 创建一个测试JSON
         var jsonMessage = new V2Response
         {
@@ -108,17 +100,17 @@ class Program
                 ReplayUiVisible = false
             }
         };
-        
+
         // 转换为JSON
         string jsonString = JsonSerializer.Serialize(jsonMessage);
         byte[] jsonBytes = Encoding.UTF8.GetBytes(jsonString);
-        
+
         // 解析
         dataSource.ParseAndProcessMessageForTest(jsonBytes);
-        
+
         // 获取结果
         var result = dataSource.GetCurrentValuesForTest();
-        
+
         // 输出结果
         Console.WriteLine($"解析结果:");
         Console.WriteLine($"  状态: {result.Status}");
@@ -129,23 +121,23 @@ class Program
         Console.WriteLine($"  谱面文件夹: {result.BeatmapFolder}");
         Console.WriteLine($"  谱面文件: {result.BeatmapFile}");
     }
-    
+
     static void RunUtf8JsonReaderTests()
     {
         Console.WriteLine("\nUTF8JsonReader性能测试");
         Console.WriteLine("---------------------------");
-        
+
         // 创建测试JSON
         var largeJson = CreateLargeTestJson();
         var jsonBytes = Encoding.UTF8.GetBytes(largeJson);
-        
+
         // 预热
         for (int i = 0; i < 10; i++)
         {
             TestStringMethod(largeJson);
             TestUtf8JsonReaderMethod(jsonBytes);
         }
-        
+
         // 测试字符串方法
         Console.WriteLine("测试基于字符串比较的方法...");
         var sw1 = System.Diagnostics.Stopwatch.StartNew();
@@ -154,7 +146,7 @@ class Program
             TestStringMethod(largeJson);
         }
         sw1.Stop();
-        
+
         // 测试Utf8JsonReader方法
         Console.WriteLine("测试基于Utf8JsonReader的方法...");
         var sw2 = System.Diagnostics.Stopwatch.StartNew();
@@ -163,27 +155,27 @@ class Program
             TestUtf8JsonReaderMethod(jsonBytes);
         }
         sw2.Stop();
-        
+
         // 输出比较
         Console.WriteLine($"字符串方法: {sw1.ElapsedMilliseconds} ms");
         Console.WriteLine($"Utf8JsonReader方法: {sw2.ElapsedMilliseconds} ms");
         Console.WriteLine($"性能提升: {(double)sw1.ElapsedMilliseconds / sw2.ElapsedMilliseconds:F2}x");
     }
-    
+
     static void TestStringMethod(string json)
     {
         try
         {
             var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var response = JsonSerializer.Deserialize<V2Response>(json, options);
-            
+
             if (response?.Play != null)
             {
                 var combo = response.Play.Combo?.Current ?? 0;
                 var playerName = response.Play.PlayerName ?? string.Empty;
                 var score = response.Play.Score;
             }
-            
+
             if (response?.State != null)
             {
                 var state = response.State.Number;
@@ -194,7 +186,7 @@ class Program
             // 忽略异常
         }
     }
-    
+
     static void TestUtf8JsonReaderMethod(byte[] jsonBytes)
     {
         try
@@ -204,22 +196,22 @@ class Program
             string? playerName = null;
             long? score = null;
             long? state = null;
-            
+
             while (reader.Read())
             {
                 if (reader.TokenType != JsonTokenType.PropertyName)
                     continue;
-                    
+
                 ReadOnlySpan<byte> propertyName = reader.ValueSpan;
                 reader.Read(); // 移到值
-                
+
                 if (propertyName.SequenceEqual("state"u8))
                 {
                     if (reader.TokenType == JsonTokenType.StartObject)
                     {
                         while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
                         {
-                            if (reader.TokenType == JsonTokenType.PropertyName && 
+                            if (reader.TokenType == JsonTokenType.PropertyName &&
                                 reader.ValueSpan.SequenceEqual("number"u8))
                             {
                                 reader.Read();
@@ -239,26 +231,26 @@ class Program
                         {
                             if (reader.TokenType != JsonTokenType.PropertyName)
                                 continue;
-                                
+
                             ReadOnlySpan<byte> playProp = reader.ValueSpan;
                             reader.Read();
-                            
-                            if (playProp.SequenceEqual("playerName"u8) && 
+
+                            if (playProp.SequenceEqual("playerName"u8) &&
                                 reader.TokenType == JsonTokenType.String)
                             {
                                 playerName = reader.GetString();
                             }
-                            else if (playProp.SequenceEqual("score"u8) && 
+                            else if (playProp.SequenceEqual("score"u8) &&
                                 reader.TokenType == JsonTokenType.Number)
                             {
                                 score = reader.GetInt64();
                             }
-                            else if (playProp.SequenceEqual("combo"u8) && 
+                            else if (playProp.SequenceEqual("combo"u8) &&
                                 reader.TokenType == JsonTokenType.StartObject)
                             {
                                 while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
                                 {
-                                    if (reader.TokenType == JsonTokenType.PropertyName && 
+                                    if (reader.TokenType == JsonTokenType.PropertyName &&
                                         reader.ValueSpan.SequenceEqual("current"u8))
                                     {
                                         reader.Read();
@@ -279,7 +271,7 @@ class Program
             // 忽略异常
         }
     }
-    
+
     static string CreateLargeTestJson()
     {
         var response = new V2Response
@@ -348,13 +340,13 @@ class Program
             },
             Leaderboard = new object[50] // 添加一些排行榜元素
         };
-        
+
         // 添加一些额外的属性以使JSON更大
         for (int i = 0; i < response.Leaderboard.Length; i++)
         {
             response.Leaderboard[i] = new { Rank = i + 1, Username = $"Player{i}", Score = 1000000 - i * 10000 };
         }
-        
+
         return JsonSerializer.Serialize(response);
     }
-} 
+}

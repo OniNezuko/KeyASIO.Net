@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using Microsoft.Extensions.Logging;
+using KeyAsio.MemoryReading.Logging;
 
 namespace KeyAsio.TosuSource;
 
@@ -10,7 +10,7 @@ namespace KeyAsio.TosuSource;
 internal class TosuProcessManager : IDisposable, IAsyncDisposable
 {
     private const string ServerStartedPattern = @"\[server\] Dashboard started on http://127\.0\.0\.1:(\d+)";
-    
+
     private Process? _process;
     private readonly string _tosuPath;
     private readonly ILogger _logger;
@@ -99,21 +99,21 @@ internal class TosuProcessManager : IDisposable, IAsyncDisposable
         try
         {
             _logger.LogInformation("正在停止tosu进程");
-            
+
             // 尝试正常关闭
             _process.CloseMainWindow();
-            
+
             // 给进程一些时间来正常关闭
             await Task.Delay(1000);
-            
+
             // 如果进程仍在运行，则强制终止
             if (!_process.HasExited)
             {
                 _process.Kill();
             }
-            
+
             await Task.Delay(500); // 等待进程完全退出
-            
+
             _isReady = false;
             _serverPort = null;
         }
@@ -212,4 +212,4 @@ internal class TosuProcessManager : IDisposable, IAsyncDisposable
         Dispose(true);
         GC.SuppressFinalize(this);
     }
-} 
+}

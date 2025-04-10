@@ -1,7 +1,6 @@
 using System.Net.WebSockets;
-using System.Reactive.Linq;
 using System.Text.Json;
-using Microsoft.Extensions.Logging;
+using KeyAsio.MemoryReading.Logging;
 using Websocket.Client;
 
 namespace KeyAsio.TosuSource;
@@ -30,12 +29,12 @@ internal class TosuWebSocketClient : IDisposable, IAsyncDisposable
     {
         _logger = logger;
     }
-    
+
     /// <summary>
     /// 连接状态改变事件
     /// </summary>
     public event EventHandler<bool>? ConnectionChanged;
-    
+
     /// <summary>
     /// 消息接收事件
     /// </summary>
@@ -270,4 +269,4 @@ internal class TosuWebSocketClient : IDisposable, IAsyncDisposable
         _reconnectLock.Dispose();
         GC.SuppressFinalize(this);
     }
-} 
+}

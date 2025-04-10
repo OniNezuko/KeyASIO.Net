@@ -21,11 +21,6 @@ public class TosuDataSourceOptions
     public bool AutoRestartTosuProcess { get; set; } = true;
 
     /// <summary>
-    /// 当无法连接时，最大尝试次数
-    /// </summary>
-    public int MaxConnectionRetries { get; set; } = 5;
-
-    /// <summary>
     /// WebSocket数据更新间隔(毫秒)
     /// </summary>
     public int UpdateIntervalMs { get; set; } = 100;

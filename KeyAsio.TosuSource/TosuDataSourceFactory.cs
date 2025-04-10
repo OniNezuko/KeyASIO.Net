@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+using KeyAsio.MemoryReading.Logging;
 
 namespace KeyAsio.TosuSource;
 
@@ -67,4 +67,4 @@ public static class TosuDataSourceFactory
             }
         }
     }
-} 
+}
