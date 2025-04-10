@@ -29,6 +29,7 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
     private int _currentCombo;
     private long _currentScore;
     private string _playerName = string.Empty;
+    private bool _isReplay;
 
     /// <summary>
     /// 创建tosu数据源
@@ -334,6 +335,17 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
                     _currentBeatmap = newBeatmap;
                     _memoryReadObject.BeatmapIdentifier = newBeatmap;
                 }
+            }
+        }
+
+        // 处理是否处于回放模式
+        if (response.Settings != null)
+        {
+            var isReplay = response.Settings.ReplayUiVisible;
+            if (_isReplay != isReplay)
+            {
+                _isReplay = isReplay;
+                _memoryReadObject.IsReplay = isReplay;
             }
         }
 
