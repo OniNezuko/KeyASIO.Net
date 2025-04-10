@@ -290,3 +290,4 @@ __pycache__/
 *.xsd.cs
 Daylily.Web/json.json
 Daylily.Web/json.txt
+.vscode/settings.json

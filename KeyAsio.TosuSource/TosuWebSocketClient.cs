@@ -11,23 +11,24 @@ namespace KeyAsio.TosuSource;
 internal class TosuWebSocketClient : IDisposable, IAsyncDisposable
 {
     private readonly ILogger _logger;
+    private readonly TosuDataSourceOptions _options;
     private WebsocketClient? _client;
     private Uri? _serverUri;
     private bool _isConnected;
     private bool _isReconnecting;
     private readonly SemaphoreSlim _reconnectLock = new(1, 1);
     private readonly CancellationTokenSource _cts = new();
-    private readonly int _maxReconnectAttempts = 10;
-    private readonly int _reconnectDelayMs = 2000;
     private int _reconnectAttempts = 0;
 
     /// <summary>
     /// 创建tosu WebSocket客户端
     /// </summary>
     /// <param name="logger">日志记录器</param>
-    public TosuWebSocketClient(ILogger logger)
+    /// <param name="options">tosu数据源配置选项</param>
+    public TosuWebSocketClient(ILogger logger, TosuDataSourceOptions options)
     {
         _logger = logger;
+        _options = options;
     }
 
     /// <summary>
@@ -211,15 +212,15 @@ internal class TosuWebSocketClient : IDisposable, IAsyncDisposable
             _isReconnecting = true;
             _reconnectAttempts++;
 
-            if (_reconnectAttempts > _maxReconnectAttempts)
+            if (_reconnectAttempts > _options.MaxConnectionRetries)
             {
-                _logger.LogError($"重连尝试次数超过最大值 ({_maxReconnectAttempts})，停止重连");
+                _logger.LogError($"重连尝试次数超过最大值 ({_options.MaxConnectionRetries})，停止重连");
                 _isReconnecting = false;
                 return;
             }
 
-            int delayMs = _reconnectDelayMs * _reconnectAttempts;
-            _logger.LogInformation($"尝试重连 ({_reconnectAttempts}/{_maxReconnectAttempts})，延迟 {delayMs}ms");
+            int delayMs = _options.ReconnectIntervalMs * _reconnectAttempts;
+            _logger.LogInformation($"尝试重连 ({_reconnectAttempts}/{_options.MaxConnectionRetries})，延迟 {delayMs}ms");
 
             await Task.Delay(delayMs, _cts.Token);
             await InitializeClientAsync();

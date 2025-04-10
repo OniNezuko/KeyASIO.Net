@@ -45,7 +45,7 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
         }
 
         _processManager = new TosuProcessManager(_options.TosuExecutablePath, _logger);
-        _webSocketClient = new TosuWebSocketClient(_logger);
+        _webSocketClient = new TosuWebSocketClient(_logger, _options);
 
         // 设置事件处理
         _processManager.ProcessReady += OnProcessReady;
