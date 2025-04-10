@@ -308,160 +308,159 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
                 if (reader.TokenType != JsonTokenType.PropertyName)
                     continue;
 
-                string propertyName = reader.GetString();
+                // 使用ValueSpan直接比较属性名，避免字符串分配
+                ReadOnlySpan<byte> propertyName = reader.ValueSpan;
                 
                 // 跳到属性值
                 reader.Read();
                 
-                switch (propertyName)
+                if (propertyName.SequenceEqual("state"u8))
                 {
-                    case "state":
-                        if (reader.TokenType == JsonTokenType.StartObject)
+                    if (reader.TokenType == JsonTokenType.StartObject)
+                    {
+                        // 处理state对象
+                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
                         {
-                            // 处理state对象
-                            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                            if (reader.TokenType == JsonTokenType.PropertyName && reader.ValueSpan.SequenceEqual("number"u8))
                             {
-                                if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "number")
+                                reader.Read(); // 移到number值
+                                if (reader.TokenType == JsonTokenType.Number)
                                 {
-                                    reader.Read(); // 移到number值
-                                    if (reader.TokenType == JsonTokenType.Number)
+                                    long stateNumber = reader.GetInt64();
+                                    newStatus = ConvertStateToOsuStatus(stateNumber);
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (propertyName.SequenceEqual("directPath"u8))
+                {
+                    if (reader.TokenType == JsonTokenType.StartObject)
+                    {
+                        // 处理directPath对象
+                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                        {
+                            if (reader.TokenType == JsonTokenType.PropertyName)
+                            {
+                                ReadOnlySpan<byte> pathPropertyName = reader.ValueSpan;
+                                reader.Read(); // 移到属性值
+                                
+                                if (pathPropertyName.SequenceEqual("beatmapFolder"u8) && reader.TokenType == JsonTokenType.String)
+                                {
+                                    beatmapFolder = reader.GetString();
+                                }
+                                else if (pathPropertyName.SequenceEqual("beatmapFile"u8) && reader.TokenType == JsonTokenType.String)
+                                {
+                                    string fullPath = reader.GetString();
+                                    if (!string.IsNullOrEmpty(fullPath))
                                     {
-                                        long stateNumber = reader.GetInt64();
-                                        newStatus = ConvertStateToOsuStatus(stateNumber);
+                                        beatmapFile = Path.GetFileName(fullPath);
                                     }
                                 }
                             }
                         }
-                        break;
-
-                    case "directPath":
-                        if (reader.TokenType == JsonTokenType.StartObject)
+                    }
+                }
+                else if (propertyName.SequenceEqual("settings"u8))
+                {
+                    if (reader.TokenType == JsonTokenType.StartObject)
+                    {
+                        // 处理settings对象
+                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
                         {
-                            // 处理directPath对象
-                            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                            if (reader.TokenType == JsonTokenType.PropertyName && reader.ValueSpan.SequenceEqual("replayUIVisible"u8))
                             {
-                                if (reader.TokenType == JsonTokenType.PropertyName)
+                                reader.Read(); // 移到replayUIVisible值
+                                if (reader.TokenType == JsonTokenType.True || reader.TokenType == JsonTokenType.False)
                                 {
-                                    string pathPropertyName = reader.GetString();
-                                    reader.Read(); // 移到属性值
-                                    
-                                    if (pathPropertyName == "beatmapFolder" && reader.TokenType == JsonTokenType.String)
+                                    isReplayMode = reader.GetBoolean();
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (propertyName.SequenceEqual("play"u8))
+                {
+                    if (reader.TokenType == JsonTokenType.StartObject)
+                    {
+                        // 处理play对象
+                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                        {
+                            if (reader.TokenType == JsonTokenType.PropertyName)
+                            {
+                                ReadOnlySpan<byte> playPropertyName = reader.ValueSpan;
+                                reader.Read(); // 移到属性值
+                                
+                                if (playPropertyName.SequenceEqual("playerName"u8) && reader.TokenType == JsonTokenType.String)
+                                {
+                                    playerName = reader.GetString();
+                                }
+                                else if (playPropertyName.SequenceEqual("score"u8) && reader.TokenType == JsonTokenType.Number)
+                                {
+                                    score = reader.GetInt64();
+                                }
+                                else if (playPropertyName.SequenceEqual("mods"u8) && reader.TokenType == JsonTokenType.StartObject)
+                                {
+                                    // 处理mods对象
+                                    while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
                                     {
-                                        beatmapFolder = reader.GetString();
-                                    }
-                                    else if (pathPropertyName == "beatmapFile" && reader.TokenType == JsonTokenType.String)
-                                    {
-                                        string fullPath = reader.GetString();
-                                        if (!string.IsNullOrEmpty(fullPath))
+                                        if (reader.TokenType == JsonTokenType.PropertyName && reader.ValueSpan.SequenceEqual("number"u8))
                                         {
-                                            beatmapFile = Path.GetFileName(fullPath);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        break;
-
-                    case "settings":
-                        if (reader.TokenType == JsonTokenType.StartObject)
-                        {
-                            // 处理settings对象
-                            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                            {
-                                if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "replayUIVisible")
-                                {
-                                    reader.Read(); // 移到replayUIVisible值
-                                    if (reader.TokenType == JsonTokenType.True || reader.TokenType == JsonTokenType.False)
-                                    {
-                                        isReplayMode = reader.GetBoolean();
-                                    }
-                                }
-                            }
-                        }
-                        break;
-
-                    case "play":
-                        if (reader.TokenType == JsonTokenType.StartObject)
-                        {
-                            // 处理play对象
-                            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                            {
-                                if (reader.TokenType == JsonTokenType.PropertyName)
-                                {
-                                    string playPropertyName = reader.GetString();
-                                    reader.Read(); // 移到属性值
-                                    
-                                    if (playPropertyName == "playerName" && reader.TokenType == JsonTokenType.String)
-                                    {
-                                        playerName = reader.GetString();
-                                    }
-                                    else if (playPropertyName == "score" && reader.TokenType == JsonTokenType.Number)
-                                    {
-                                        score = reader.GetInt64();
-                                    }
-                                    else if (playPropertyName == "mods" && reader.TokenType == JsonTokenType.StartObject)
-                                    {
-                                        // 处理mods对象
-                                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                                        {
-                                            if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "number")
+                                            reader.Read(); // 移到number值
+                                            if (reader.TokenType == JsonTokenType.Number)
                                             {
-                                                reader.Read(); // 移到number值
-                                                if (reader.TokenType == JsonTokenType.Number)
-                                                {
-                                                    mods = (int)reader.GetInt64();
-                                                }
-                                            }
-                                        }
-                                    }
-                                    else if (playPropertyName == "combo" && reader.TokenType == JsonTokenType.StartObject)
-                                    {
-                                        // 处理combo对象
-                                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                                        {
-                                            if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "current")
-                                            {
-                                                reader.Read(); // 移到current值
-                                                if (reader.TokenType == JsonTokenType.Number)
-                                                {
-                                                    combo = reader.GetInt32();
-                                                }
+                                                mods = (int)reader.GetInt64();
                                             }
                                         }
                                     }
                                 }
-                            }
-                        }
-                        break;
-
-                    case "beatmap":
-                        if (reader.TokenType == JsonTokenType.StartObject)
-                        {
-                            // 处理beatmap对象
-                            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                            {
-                                if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "time")
+                                else if (playPropertyName.SequenceEqual("combo"u8) && reader.TokenType == JsonTokenType.StartObject)
                                 {
-                                    reader.Read(); // 移到time对象
-                                    if (reader.TokenType == JsonTokenType.StartObject)
+                                    // 处理combo对象
+                                    while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
                                     {
-                                        // 处理time对象
-                                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                                        if (reader.TokenType == JsonTokenType.PropertyName && reader.ValueSpan.SequenceEqual("current"u8))
                                         {
-                                            if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "live")
+                                            reader.Read(); // 移到current值
+                                            if (reader.TokenType == JsonTokenType.Number)
                                             {
-                                                reader.Read(); // 移到live值
-                                                if (reader.TokenType == JsonTokenType.Number)
-                                                {
-                                                    playTime = reader.GetInt32();
-                                                }
+                                                combo = reader.GetInt32();
                                             }
                                         }
                                     }
                                 }
                             }
                         }
-                        break;
+                    }
+                }
+                else if (propertyName.SequenceEqual("beatmap"u8))
+                {
+                    if (reader.TokenType == JsonTokenType.StartObject)
+                    {
+                        // 处理beatmap对象
+                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                        {
+                            if (reader.TokenType == JsonTokenType.PropertyName && reader.ValueSpan.SequenceEqual("time"u8))
+                            {
+                                reader.Read(); // 移到time对象
+                                if (reader.TokenType == JsonTokenType.StartObject)
+                                {
+                                    // 处理time对象
+                                    while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+                                    {
+                                        if (reader.TokenType == JsonTokenType.PropertyName && reader.ValueSpan.SequenceEqual("live"u8))
+                                        {
+                                            reader.Read(); // 移到live值
+                                            if (reader.TokenType == JsonTokenType.Number)
+                                            {
+                                                playTime = reader.GetInt32();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
