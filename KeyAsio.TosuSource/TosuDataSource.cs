@@ -309,7 +309,6 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
     {
         try
         {
-            var all = Encoding.UTF8.GetString(messageData.Span);
             var reader = new Utf8JsonReader(messageData.Span);
 
             OsuMemoryStatus? newStatus = null;
@@ -322,189 +321,89 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
             int? combo = null;
             int? playTime = null;
 
-            // 开始解析JSON
-            while (reader.Read())
-            {
-                // 只处理属性名称
-                if (reader.TokenType != JsonTokenType.PropertyName)
-                    continue;
-
-                // 使用ValueSpan直接比较属性名，避免字符串分配
-                ReadOnlySpan<byte> propertyName = reader.ValueSpan;
-
-                // 跳到属性值
-                reader.Read();
-
-                if (propertyName.SequenceEqual("state"u8))
+            // 创建值处理器映射
+            var valueHandlers = new ValueHandlerMapping();
+            
+            // 添加路径处理器
+            valueHandlers.AddHandler("state.number", (ref Utf8JsonReader r) => {
+                if (r.TokenType == JsonTokenType.Number)
                 {
-                    if (reader.TokenType == JsonTokenType.StartObject)
+                    long stateNumber = r.GetInt64();
+                    newStatus = ConvertStateToOsuStatus(stateNumber);
+                }
+                return true;
+            });
+            
+            valueHandlers.AddHandler("directPath.beatmapFolder", (ref Utf8JsonReader r) => {
+                if (r.TokenType == JsonTokenType.String)
+                {
+                    beatmapFolder = r.GetString();
+                }
+                return true;
+            });
+            
+            valueHandlers.AddHandler("directPath.beatmapFile", (ref Utf8JsonReader r) => {
+                if (r.TokenType == JsonTokenType.String)
+                {
+                    string fullPath = r.GetString();
+                    if (!string.IsNullOrEmpty(fullPath))
                     {
-                        // 处理state对象
-                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                        {
-                            if (reader.TokenType == JsonTokenType.PropertyName && reader.ValueSpan.SequenceEqual("number"u8))
-                            {
-                                reader.Read(); // 移到number值
-                                if (reader.TokenType == JsonTokenType.Number)
-                                {
-                                    long stateNumber = reader.GetInt64();
-                                    newStatus = ConvertStateToOsuStatus(stateNumber);
-                                }
-                            }
-                        }
+                        beatmapFile = Path.GetFileName(fullPath);
                     }
                 }
-                else if (propertyName.SequenceEqual("directPath"u8))
+                return true;
+            });
+            
+            valueHandlers.AddHandler("settings.replayUIVisible", (ref Utf8JsonReader r) => {
+                if (r.TokenType == JsonTokenType.True || r.TokenType == JsonTokenType.False)
                 {
-                    if (reader.TokenType == JsonTokenType.StartObject)
-                    {
-                        // 处理directPath对象
-                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                        {
-                            if (reader.TokenType == JsonTokenType.PropertyName)
-                            {
-                                ReadOnlySpan<byte> pathPropertyName = reader.ValueSpan;
-                                reader.Read(); // 移到属性值
-
-                                if (pathPropertyName.SequenceEqual("beatmapFolder"u8) && reader.TokenType == JsonTokenType.String)
-                                {
-                                    beatmapFolder = reader.GetString();
-                                }
-                                else if (pathPropertyName.SequenceEqual("beatmapFile"u8) && reader.TokenType == JsonTokenType.String)
-                                {
-                                    string fullPath = reader.GetString();
-                                    if (!string.IsNullOrEmpty(fullPath))
-                                    {
-                                        beatmapFile = Path.GetFileName(fullPath);
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    isReplayMode = r.GetBoolean();
                 }
-                else if (propertyName.SequenceEqual("settings"u8))
+                return true;
+            });
+            
+            valueHandlers.AddHandler("play.playerName", (ref Utf8JsonReader r) => {
+                if (r.TokenType == JsonTokenType.String)
                 {
-                    if (reader.TokenType == JsonTokenType.StartObject)
-                    {
-                        // 处理settings对象
-                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                        {
-                            if (reader.TokenType == JsonTokenType.PropertyName && reader.ValueSpan.SequenceEqual("replayUIVisible"u8))
-                            {
-                                reader.Read(); // 移到replayUIVisible值
-                                if (reader.TokenType == JsonTokenType.True || reader.TokenType == JsonTokenType.False)
-                                {
-                                    //isReplayMode = reader.GetBoolean();
-                                }
-                            }
-                        }
-                    }
+                    playerName = r.GetString();
                 }
-                else if (propertyName.SequenceEqual("play"u8))
+                return true;
+            });
+            
+            valueHandlers.AddHandler("play.score", (ref Utf8JsonReader r) => {
+                if (r.TokenType == JsonTokenType.Number)
                 {
-                    if (reader.TokenType == JsonTokenType.StartObject)
-                    {
-                        // 处理play对象
-                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                        {
-                            if (reader.TokenType == JsonTokenType.PropertyName)
-                            {
-                                ReadOnlySpan<byte> playPropertyName = reader.ValueSpan;
-                                reader.Read(); // 移到属性值
-
-                                if (playPropertyName.SequenceEqual("mode"u8) && reader.TokenType == JsonTokenType.StartObject)
-                                {
-                                    // 处理mode对象
-                                    while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                                    {
-                                    }
-                                }
-                                else if (playPropertyName.SequenceEqual("healthBar"u8) && reader.TokenType == JsonTokenType.StartObject)
-                                {
-                                    // 处理healthBar对象
-                                    while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                                    {
-                                    }
-                                }
-                                else if (playPropertyName.SequenceEqual("hits"u8) && reader.TokenType == JsonTokenType.StartObject)
-                                {
-                                    // 处理hits对象
-                                    while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                                    {
-                                    }
-                                }
-                                else if (playPropertyName.SequenceEqual("playerName"u8) && reader.TokenType == JsonTokenType.String)
-                                {
-                                    playerName = reader.GetString();
-                                }
-                                else if (playPropertyName.SequenceEqual("score"u8) && reader.TokenType == JsonTokenType.Number)
-                                {
-                                    score = reader.GetInt64();
-                                }
-                                else if (playPropertyName.SequenceEqual("mods"u8) && reader.TokenType == JsonTokenType.StartObject)
-                                {
-                                    // 处理mods对象
-                                    while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                                    {
-                                        if (reader.TokenType == JsonTokenType.PropertyName && reader.ValueSpan.SequenceEqual("number"u8))
-                                        {
-                                            reader.Read(); // 移到number值
-                                            if (reader.TokenType == JsonTokenType.Number)
-                                            {
-                                                mods = (int)reader.GetInt64();
-                                            }
-                                        }
-                                    }
-                                }
-                                else if (playPropertyName.SequenceEqual("combo"u8) && reader.TokenType == JsonTokenType.StartObject)
-                                {
-                                    // 处理combo对象
-                                    while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                                    {
-                                        if (reader.TokenType == JsonTokenType.PropertyName && reader.ValueSpan.SequenceEqual("current"u8))
-                                        {
-                                            reader.Read(); // 移到current值
-                                            if (reader.TokenType == JsonTokenType.Number)
-                                            {
-                                                combo = reader.GetInt32();
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    score = r.GetInt64();
                 }
-                else if (propertyName.SequenceEqual("beatmap"u8))
+                return true;
+            });
+            
+            valueHandlers.AddHandler("play.mods.number", (ref Utf8JsonReader r) => {
+                if (r.TokenType == JsonTokenType.Number)
                 {
-                    if (reader.TokenType == JsonTokenType.StartObject)
-                    {
-                        // 处理beatmap对象
-                        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                        {
-                            if (reader.TokenType == JsonTokenType.PropertyName && reader.ValueSpan.SequenceEqual("time"u8))
-                            {
-                                reader.Read(); // 移到time对象
-                                if (reader.TokenType == JsonTokenType.StartObject)
-                                {
-                                    // 处理time对象
-                                    while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                                    {
-                                        if (reader.TokenType == JsonTokenType.PropertyName && reader.ValueSpan.SequenceEqual("live"u8))
-                                        {
-                                            reader.Read(); // 移到live值
-                                            if (reader.TokenType == JsonTokenType.Number)
-                                            {
-                                                playTime = reader.GetInt32();
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    mods = (int)r.GetInt64();
                 }
-            }
+                return true;
+            });
+            
+            valueHandlers.AddHandler("play.combo.current", (ref Utf8JsonReader r) => {
+                if (r.TokenType == JsonTokenType.Number)
+                {
+                    combo = r.GetInt32();
+                }
+                return true;
+            });
+            
+            valueHandlers.AddHandler("beatmap.time.live", (ref Utf8JsonReader r) => {
+                if (r.TokenType == JsonTokenType.Number)
+                {
+                    playTime = r.GetInt32();
+                }
+                return true;
+            });
+            
+            // 解析JSON并处理注册的路径
+            JsonHelpers.ParseDocument(ref reader, valueHandlers);
 
             // 更新MemoryReadObject
             if (newStatus.HasValue && _currentOsuStatus != newStatus.Value)
@@ -562,6 +461,310 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "解析和处理二进制JSON响应时出错");
+        }
+    }
+
+    /// <summary>
+    /// JSON辅助类，提供处理JSON的静态方法
+    /// </summary>
+    private static class JsonHelpers
+    {
+        /// <summary>
+        /// 委托定义：处理指定JSON路径的值
+        /// </summary>
+        /// <param name="reader">JSON读取器，定位在值上</param>
+        /// <returns>如果处理成功返回true</returns>
+        public delegate bool ValueHandler(ref Utf8JsonReader reader);
+
+        /// <summary>
+        /// 解析整个JSON文档，将值分派给相应的处理器
+        /// </summary>
+        /// <param name="reader">JSON读取器</param>
+        /// <param name="handlers">值处理器映射</param>
+        public static void ParseDocument(ref Utf8JsonReader reader, ValueHandlerMapping handlers)
+        {
+            // 创建路径追踪器
+            var pathTracker = new JsonPathTracker();
+            ParseElement(ref reader, handlers, pathTracker, false);
+        }
+
+        /// <summary>
+        /// 解析JSON元素（对象或数组）
+        /// </summary>
+        /// <param name="reader">JSON读取器</param>
+        /// <param name="handlers">值处理器映射</param>
+        /// <param name="pathTracker">JSON路径追踪器</param>
+        /// <param name="skipStartToken">是否跳过起始标记（对嵌套调用有用）</param>
+        private static void ParseElement(ref Utf8JsonReader reader, ValueHandlerMapping handlers, JsonPathTracker pathTracker, bool skipStartToken)
+        {
+            if (!skipStartToken && !reader.Read())
+                return;
+
+            // 确定是否为对象（否则为数组）
+            bool isObject = reader.TokenType == JsonTokenType.StartObject;
+            
+            // 数组索引（仅用于数组）
+            int arrayIndex = 0;
+            
+            // 当前属性名（仅用于对象）
+            ReadOnlySpan<byte> currentProperty = default;
+
+            int depth = 1; // 开始深度为1（已经在对象/数组内部）
+            while (depth > 0 && reader.Read())
+            {
+                switch (reader.TokenType)
+                {
+                    case JsonTokenType.PropertyName:
+                        currentProperty = reader.ValueSpan;
+                        if (isObject)
+                        {
+                            pathTracker.PushProperty(currentProperty);
+                        }
+                        break;
+
+                    case JsonTokenType.StartObject:
+                    case JsonTokenType.StartArray:
+                        depth++;
+                        if (isObject && reader.TokenType == JsonTokenType.StartObject)
+                        {
+                            // 只对对象内的对象递归解析
+                            ParseElement(ref reader, handlers, pathTracker, true);
+                            depth--; // 减少深度，因为递归已经处理了这个对象
+                        }
+                        else if (isObject && reader.TokenType == JsonTokenType.StartArray)
+                        {
+                            // 跳过数组，暂时不处理
+                            SkipValue(ref reader);
+                            depth--; // 减少深度，因为SkipValue已经处理了这个数组
+                        }
+                        break;
+
+                    case JsonTokenType.EndObject:
+                    case JsonTokenType.EndArray:
+                        depth--;
+                        if (depth == 0 && isObject)
+                        {
+                            pathTracker.Pop(); // 退出当前对象，弹出最后一个属性
+                        }
+                        break;
+
+                    default:
+                        // 处理值
+                        if (isObject)
+                        {
+                            // 尝试查找处理器并处理当前路径
+                            if (handlers.TryGetHandler(pathTracker, out var handler))
+                            {
+                                handler(ref reader);
+                            }
+                            pathTracker.Pop(); // 值处理完后弹出属性
+                        }
+                        else
+                        {
+                            // 数组元素处理（如果需要）
+                            arrayIndex++;
+                        }
+                        break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 跳过任意JSON值（对象、数组或基本类型）
+        /// </summary>
+        /// <param name="reader">JSON读取器</param>
+        public static void SkipValue(ref Utf8JsonReader reader)
+        {
+            if (reader.TokenType == JsonTokenType.StartObject || reader.TokenType == JsonTokenType.StartArray)
+            {
+                int depth = 1;
+                
+                while (depth > 0 && reader.Read())
+                {
+                    if (reader.TokenType == JsonTokenType.StartObject || reader.TokenType == JsonTokenType.StartArray)
+                    {
+                        depth++;
+                    }
+                    else if (reader.TokenType == JsonTokenType.EndObject || reader.TokenType == JsonTokenType.EndArray)
+                    {
+                        depth--;
+                    }
+                }
+            }
+            // 原始值类型不需要额外跳过操作
+        }
+    }
+
+    /// <summary>
+    /// JSON路径追踪器，用于高效追踪当前的JSON路径而不创建字符串
+    /// </summary>
+    private class JsonPathTracker
+    {
+        // 最大支持的路径深度
+        private const int MaxDepth = 16;
+        
+        // 存储路径部分的数组，使用字节数组而不是ReadOnlyMemory
+        private readonly byte[][] _pathParts = new byte[MaxDepth][];
+        
+        // 存储每个路径部分的长度
+        private readonly int[] _pathLengths = new int[MaxDepth];
+        
+        // 预分配的临时缓冲区，用于复制属性名
+        private readonly byte[] _tempBuffer = new byte[256]; // 假设大多数属性名不会超过256字节
+        
+        // 当前路径深度
+        private int _depth = 0;
+
+        /// <summary>
+        /// 将属性名推入路径栈
+        /// </summary>
+        /// <param name="propertyName">属性名</param>
+        public void PushProperty(ReadOnlySpan<byte> propertyName)
+        {
+            if (_depth < MaxDepth)
+            {
+                // 确保我们有足够的空间来存储这个属性名
+                int length = propertyName.Length;
+                if (length <= _tempBuffer.Length)
+                {
+                    // 使用预分配的临时缓冲区
+                    propertyName.CopyTo(_tempBuffer);
+                    
+                    // 如果当前深度没有分配数组，或者数组太小，则分配新数组
+                    if (_pathParts[_depth] == null || _pathParts[_depth].Length < length)
+                    {
+                        _pathParts[_depth] = new byte[length];
+                    }
+                    
+                    // 复制到存储数组
+                    propertyName.CopyTo(_pathParts[_depth].AsSpan(0, length));
+                    _pathLengths[_depth] = length;
+                    _depth++;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 弹出最后一个路径部分
+        /// </summary>
+        public void Pop()
+        {
+            if (_depth > 0)
+            {
+                _depth--;
+            }
+        }
+
+        /// <summary>
+        /// 获取当前路径的深度
+        /// </summary>
+        public int Depth => _depth;
+
+        /// <summary>
+        /// 获取指定索引处的路径部分
+        /// </summary>
+        /// <param name="index">索引</param>
+        /// <returns>路径部分</returns>
+        public ReadOnlySpan<byte> this[int index] => 
+            index < _depth && _pathParts[index] != null ? 
+            new ReadOnlySpan<byte>(_pathParts[index], 0, _pathLengths[index]) : 
+            default;
+    }
+
+    /// <summary>
+    /// 值处理器映射，高效存储和检索路径处理器
+    /// </summary>
+    private class ValueHandlerMapping
+    {
+        // 路径部分的最大长度
+        private const int MaxPathPartLength = 64;
+        
+        // 存储路径处理器的数组
+        private readonly List<PathHandlerEntry> _handlers = new List<PathHandlerEntry>();
+        
+        // 预分配的缓冲区，用于转换路径部分
+        private readonly byte[] _byteBuffer = new byte[MaxPathPartLength];
+
+        /// <summary>
+        /// 添加路径处理器
+        /// </summary>
+        /// <param name="path">点分隔的路径，如 "state.number"</param>
+        /// <param name="handler">处理器</param>
+        public void AddHandler(string path, JsonHelpers.ValueHandler handler)
+        {
+            if (string.IsNullOrEmpty(path) || handler == null)
+                return;
+
+            // 解析路径字符串为路径部分
+            var parts = path.Split('.');
+            var entry = new PathHandlerEntry
+            {
+                PathParts = new byte[parts.Length][],
+                PathLengths = new int[parts.Length],
+                Handler = handler
+            };
+            
+            for (int i = 0; i < parts.Length; i++)
+            {
+                // 获取部分的UTF8字节表示
+                int byteCount = Encoding.UTF8.GetBytes(parts[i], _byteBuffer);
+                
+                // 分配并复制到目标数组
+                entry.PathParts[i] = new byte[byteCount];
+                Buffer.BlockCopy(_byteBuffer, 0, entry.PathParts[i], 0, byteCount);
+                entry.PathLengths[i] = byteCount;
+            }
+            
+            _handlers.Add(entry);
+        }
+
+        /// <summary>
+        /// 尝试获取指定路径的处理器
+        /// </summary>
+        /// <param name="pathTracker">路径追踪器</param>
+        /// <param name="handler">找到的处理器</param>
+        /// <returns>如果找到处理器则返回true</returns>
+        public bool TryGetHandler(JsonPathTracker pathTracker, out JsonHelpers.ValueHandler handler)
+        {
+            handler = null;
+            
+            foreach (var entry in _handlers)
+            {
+                if (entry.PathParts.Length == pathTracker.Depth)
+                {
+                    bool isMatch = true;
+                    
+                    for (int i = 0; i < entry.PathParts.Length; i++)
+                    {
+                        ReadOnlySpan<byte> trackerPart = pathTracker[i];
+                        ReadOnlySpan<byte> entryPart = new ReadOnlySpan<byte>(entry.PathParts[i], 0, entry.PathLengths[i]);
+                        
+                        if (!trackerPart.SequenceEqual(entryPart))
+                        {
+                            isMatch = false;
+                            break;
+                        }
+                    }
+                    
+                    if (isMatch)
+                    {
+                        handler = entry.Handler;
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        }
+
+        /// <summary>
+        /// 路径处理器条目
+        /// </summary>
+        private class PathHandlerEntry
+        {
+            public byte[][] PathParts { get; set; }
+            public int[] PathLengths { get; set; }
+            public JsonHelpers.ValueHandler Handler { get; set; }
         }
     }
 
