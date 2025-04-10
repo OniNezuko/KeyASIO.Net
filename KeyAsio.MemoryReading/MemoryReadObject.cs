@@ -24,7 +24,7 @@ public partial class MemoryReadObject : INotifyPropertyChanged
     public int Combo { get; set; } // Player.(RulesetPlayData.Combo)
 
     [OnChangedMethod(nameof(OnScoreChanged))]
-    public int Score { get; set; } // Player.(RulesetPlayData.Score)
+    public long Score { get; set; } // Player.(RulesetPlayData.Score)
 
     [OnChangedMethod(nameof(OnIsReplayChanged))]
     public bool IsReplay { get; set; } // Player.IsReplay

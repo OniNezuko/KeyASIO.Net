@@ -167,13 +167,13 @@ public partial class Status
 public partial class Time
 {
     [JsonPropertyName("live")]
-    public long Live { get; set; }
+    public int Live { get; set; }
 
     [JsonPropertyName("firstObject")]
-    public long FirstObject { get; set; }
+    public int FirstObject { get; set; }
 
     [JsonPropertyName("lastObject")]
-    public long LastObject { get; set; }
+    public int LastObject { get; set; }
 }
 
 public partial class DirectPath
@@ -281,10 +281,10 @@ public partial class Play
 public partial class Combo
 {
     [JsonPropertyName("current")]
-    public long Current { get; set; }
+    public int Current { get; set; }
 
     [JsonPropertyName("max")]
-    public long Max { get; set; }
+    public int Max { get; set; }
 }
 
 public partial class HealthBar

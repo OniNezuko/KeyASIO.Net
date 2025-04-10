@@ -1,5 +1,6 @@
 using System.Text.Json;
 using KeyAsio.MemoryReading;
+using KeyAsio.TosuSource.Models;
 using Microsoft.Extensions.Logging;
 using OsuMemoryDataProvider;
 
@@ -26,17 +27,8 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
     private int _lastPlayTime;
     private int _currentMods;
     private int _currentCombo;
-    private int _maxCombo;
-    private int _currentScore;
-    private ushort _hit300;
-    private ushort _hit100;
-    private ushort _hit50;
-    private ushort _hitMiss;
-    private ushort _hitGeki;
-    private ushort _hitKatu;
-    private double _hp;
+    private long _currentScore;
     private string _playerName = string.Empty;
-    private bool _isReplay;
 
     /// <summary>
     /// 创建tosu数据源
@@ -297,181 +289,118 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
     {
         try
         {
-            // 尝试解析为菜单响应
-            var menuResponse = JsonSerializer.Deserialize<TosuMenuResponse>(message, _jsonOptions);
-            if (menuResponse?.Menu != null)
+            // 解析为V2Response
+            var response = JsonSerializer.Deserialize<V2Response>(message, _jsonOptions);
+            if (response != null)
             {
-                ProcessMenuData(menuResponse.Menu);
-                return;
+                ProcessData(response);
             }
         }
-        catch { /* 如果不是菜单数据，继续尝试其他格式 */ }
-
-        try
+        catch (Exception ex)
         {
-            // 尝试解析为游戏数据响应
-            var playResponse = JsonSerializer.Deserialize<TosuPlayResponse>(message, _jsonOptions);
-            if (playResponse?.Gameplay != null)
-            {
-                ProcessGameplayData(playResponse.Gameplay);
-                return;
-            }
+            _logger.LogError(ex, $"解析和处理JSON响应时出错");
         }
-        catch { /* 如果不是游戏数据，忽略 */ }
     }
 
-    private void ProcessMenuData(TosuMenuData menuData)
+    private void ProcessData(V2Response response)
     {
         // 处理osu状态更新
-        var newStatus = TosuDataConverter.ConvertMenuStateToOsuStatus(menuData.State);
-        if (_currentOsuStatus != newStatus)
+        if (response.State != null)
         {
-            var oldStatus = _currentOsuStatus;
-            _currentOsuStatus = newStatus;
-            _memoryReadObject.OsuStatus = newStatus;
+            var newStatus = ConvertStateToOsuStatus(response.State.Number);
+            if (_currentOsuStatus != newStatus)
+            {
+                var oldStatus = _currentOsuStatus;
+                _currentOsuStatus = newStatus;
+                _memoryReadObject.OsuStatus = newStatus;
+            }
         }
 
         // 处理谱面信息
-        if (menuData.Beatmap != null)
+        if (response.Beatmap != null && response.DirectPath != null)
         {
-            var bm = menuData.Beatmap;
-            var newBeatmap = new BeatmapIdentifier
-            {
-                //SongTitle = bm.Title ?? string.Empty,
-                //SongArtist = bm.Artist ?? string.Empty,
-                //Difficulty = bm.Difficulty ?? string.Empty,
-                //BeatmapId = bm.Id,
-                //BeatmapSetId = bm.SetId,
-                //Md5 = bm.Md5 ?? string.Empty,
-                //MapFolderName = bm.Path?.Folder ?? string.Empty,
-                //MapFileName = bm.Path?.File ?? string.Empty,
-                //Ar = bm.Ar,
-                //Cs = bm.Cs,
-                //Hp = bm.Hp,
-                //Od = bm.Od
-            };
+            var beatmap = response.Beatmap;
+            var directPath = response.DirectPath;
 
+            string folder = directPath.BeatmapFolder ?? string.Empty;
+            string file = directPath.BeatmapFile != null ? Path.GetFileName(directPath.BeatmapFile) : string.Empty;
 
-            if (!newBeatmap.Equals(_currentBeatmap))
+            if (!string.IsNullOrEmpty(folder) && !string.IsNullOrEmpty(file))
             {
-                _currentBeatmap = newBeatmap;
-                _memoryReadObject.BeatmapIdentifier = newBeatmap;
+                var newBeatmap = new BeatmapIdentifier(folder, file);
+
+                if (!newBeatmap.Equals(_currentBeatmap))
+                {
+                    _currentBeatmap = newBeatmap;
+                    _memoryReadObject.BeatmapIdentifier = newBeatmap;
+                }
             }
         }
 
         // 处理MOD信息
-        if (menuData.Mods != null)
+        if (response.Play?.Mods?.Number != null)
         {
-            var newMods = menuData.Mods.Num;
+            var newMods = (int)response.Play.Mods.Number;
             if (_currentMods != newMods)
             {
                 _currentMods = newMods;
-                _memoryReadObject.Mods = TosuDataConverter.ConvertToMods(_currentMods);
-            }
-        }
-    }
-
-    private void ProcessGameplayData(TosuGameplayData gameplayData)
-    {
-        // 处理玩家名称
-        if (gameplayData.PlayerName != null && _playerName != gameplayData.PlayerName)
-        {
-            _playerName = gameplayData.PlayerName;
-            _memoryReadObject.PlayerName = _playerName;
-        }
-
-        // 处理分数
-        if (gameplayData.Score != _currentScore)
-        {
-            _currentScore = gameplayData.Score;
-            _memoryReadObject.Score = _currentScore;
-        }
-
-        // 处理连击
-        if (gameplayData.Combo != null)
-        {
-            var combo = gameplayData.Combo;
-
-            if (combo.Current != _currentCombo)
-            {
-                _currentCombo = combo.Current;
-                _memoryReadObject.Combo = _currentCombo;
-            }
-
-            if (combo.Max != _maxCombo)
-            {
-                _maxCombo = combo.Max;
-                //_memoryReadObject.UpdateMaxCombo(_maxCombo);
+                _memoryReadObject.Mods = (Mods)_currentMods;
             }
         }
 
-        // 处理生命值
-        if (gameplayData.Hp != null)
+        // 处理玩家信息
+        if (response.Play != null)
         {
-            var newHp = gameplayData.Hp.Normal;
-            if (Math.Abs(_hp - newHp) > 0.01)
+            // 处理玩家名称
+            if (!string.IsNullOrEmpty(response.Play.PlayerName) && _playerName != response.Play.PlayerName)
             {
-                _hp = newHp;
-                //_memoryReadObject.UpdateHp(_hp);
-            }
-        }
-
-        // 处理打击数据
-        if (gameplayData.Hits != null)
-        {
-            var hits = gameplayData.Hits;
-
-            if (hits.Hit300 != _hit300)
-            {
-                _hit300 = (ushort)hits.Hit300;
-                //_memoryReadObject.UpdateHit300(_hit300);
+                _playerName = response.Play.PlayerName;
+                _memoryReadObject.PlayerName = _playerName;
             }
 
-            if (hits.Hit100 != _hit100)
+            // 处理分数
+            if (response.Play.Score != _currentScore)
             {
-                _hit100 = (ushort)hits.Hit100;
-                //_memoryReadObject.UpdateHit100(_hit100);
+                _currentScore = response.Play.Score;
+                _memoryReadObject.Score = _currentScore;
             }
 
-            if (hits.Hit50 != _hit50)
+            // 处理连击
+            if (response.Play.Combo != null)
             {
-                _hit50 = (ushort)hits.Hit50;
-                //_memoryReadObject.UpdateHit50(_hit50);
-            }
+                var combo = response.Play.Combo;
 
-            if (hits.HitMiss != _hitMiss)
-            {
-                _hitMiss = (ushort)hits.HitMiss;
-                //_memoryReadObject.UpdateHitMiss(_hitMiss);
-            }
-
-            if (hits.HitGeki != _hitGeki)
-            {
-                _hitGeki = (ushort)hits.HitGeki;
-                //_memoryReadObject.UpdateHitGeki(_hitGeki);
-            }
-
-            if (hits.HitKatu != _hitKatu)
-            {
-                _hitKatu = (ushort)hits.HitKatu;
-                //_memoryReadObject.UpdateHitKatu(_hitKatu);
+                if (combo.Current != _currentCombo)
+                {
+                    _currentCombo = combo.Current;
+                    _memoryReadObject.Combo = _currentCombo;
+                }
             }
         }
 
         // 处理时间
-        if (gameplayData.Time != null)
+        if (response.Beatmap?.Time != null)
         {
-            var time = gameplayData.Time;
-            if (time.Current != _lastPlayTime)
+            var time = response.Beatmap.Time;
+            if (time.Live != _lastPlayTime)
             {
-                _lastPlayTime = time.Current;
+                _lastPlayTime = time.Live;
                 _memoryReadObject.PlayingTime = _lastPlayTime;
             }
         }
+    }
 
-        // 基于回放数据，我们可能无法直接知道是否是回放，但可以基于其他信息推断
-        // 简单实现：假设这里我们不改变它的值
-        _memoryReadObject.IsReplay = _isReplay;
+    private OsuMemoryStatus ConvertStateToOsuStatus(long stateNumber)
+    {
+        return stateNumber switch
+        {
+            0 => OsuMemoryStatus.MainMenu,
+            1 => OsuMemoryStatus.EditingMap,
+            2 => OsuMemoryStatus.Playing,
+            5 => OsuMemoryStatus.SongSelect,
+            7 => OsuMemoryStatus.ResultsScreen,
+            _ => OsuMemoryStatus.NotRunning
+        };
     }
 
     private async Task DataUpdateLoopAsync()
