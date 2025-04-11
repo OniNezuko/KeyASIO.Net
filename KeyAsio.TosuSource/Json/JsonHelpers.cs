@@ -70,7 +70,6 @@ public static class JsonHelpers
 
         // 当前属性名（仅用于对象）
         ReadOnlySpan<byte> currentProperty = default;
-
         int depth = 1; // 开始深度为1（已经在对象/数组内部）
         while (depth > 0 && reader.Read())
         {
@@ -99,6 +98,10 @@ public static class JsonHelpers
                         // 跳过数组，暂时不处理
                         SkipValue(ref reader);
                         depth--; // 减少深度，因为SkipValue已经处理了这个数组
+                        if (isObject)
+                        {
+                            pathTracker.Pop(); // 弹出当前Array属性
+                        }
                     }
 
                     break;

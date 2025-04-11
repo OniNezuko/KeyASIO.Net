@@ -70,13 +70,13 @@ public class ValueHandlerMapping
     /// <typeparam name="T">值类型</typeparam>
     /// <param name="path">路径</param>
     /// <returns>上次处理的值</returns>
-    public T GetLastProcessedValue<T>(string path)
+    public T? GetLastProcessedValue<T>(string path)
     {
         ArgumentNullException.ThrowIfNull(path);
 
         return _processedValues.TryGetValue(path, out var value) && value is T typedValue
             ? typedValue
-            : default!;
+            : default;
     }
 
     /// <summary>

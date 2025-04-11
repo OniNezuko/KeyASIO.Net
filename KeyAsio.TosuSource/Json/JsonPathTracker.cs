@@ -1,8 +1,12 @@
+using System.Diagnostics;
+using System.Text;
+
 namespace KeyAsio.TosuSource.Json;
 
 /// <summary>
 /// JSON路径追踪器，用于高效追踪当前的JSON路径而不创建字符串
 /// </summary>
+[DebuggerDisplay("{DebuggerGetCurrentPath()}")]
 public class JsonPathTracker
 {
     // 最大支持的路径深度
@@ -78,4 +82,23 @@ public class JsonPathTracker
     /// 获取当前路径的深度
     /// </summary>
     public int Depth => _depth;
+
+    /// <summary>
+    /// 获取当前完整路径（仅用于调试显示）
+    /// </summary>
+    internal string DebuggerGetCurrentPath()
+    {
+        if (_depth == 0) return string.Empty;
+
+        var sb = new StringBuilder();
+        for (int i = 0; i < _depth; i++)
+        {
+            if (i > 0) sb.Append('.');
+            if (_pathParts[i] != null)
+            {
+                sb.Append(Encoding.UTF8.GetString(_pathParts[i], 0, _pathLengths[i]));
+            }
+        }
+        return sb.ToString();
+    }
 }
