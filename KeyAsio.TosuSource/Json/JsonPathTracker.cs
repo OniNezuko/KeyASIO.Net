@@ -18,6 +18,16 @@ public class JsonPathTracker
     private int _depth = 0;
 
     /// <summary>
+    /// 重置追踪器状态，使其可以被重用
+    /// </summary>
+    public void Reset()
+    {
+        _depth = 0;
+        // 注意：我们不需要清除_pathParts和_pathLengths的内容
+        // 因为它们会在下一次使用时被覆盖
+    }
+
+    /// <summary>
     /// 获取指定索引处的路径部分
     /// </summary>
     /// <param name="index">索引</param>

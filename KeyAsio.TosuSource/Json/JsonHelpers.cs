@@ -8,6 +8,12 @@ namespace KeyAsio.TosuSource.Json;
 public static class JsonHelpers
 {
     /// <summary>
+    /// 用于复用的JsonPathTracker实例
+    /// </summary>
+    private static readonly ThreadLocal<JsonPathTracker> PathTracker = new(
+        () => new JsonPathTracker(), trackAllValues: false);
+
+    /// <summary>
     /// 委托定义：处理指定JSON路径的值并返回处理结果
     /// </summary>
     /// <typeparam name="T">值的类型</typeparam>
@@ -30,8 +36,12 @@ public static class JsonHelpers
     public static void ParseDocument(ref Utf8JsonReader reader, ValueHandlerMapping handlers)
     {
         ArgumentNullException.ThrowIfNull(handlers);
-        
-        var pathTracker = new JsonPathTracker();
+
+        // 获取JsonPathTracker实例
+        var pathTracker = PathTracker.Value!;
+        pathTracker.Reset(); // 重置状态以便复用
+
+        handlers.ResetProcessedValues(); // 重置处理过的值
         ParseElement(ref reader, handlers, pathTracker, false);
     }
 
@@ -47,7 +57,7 @@ public static class JsonHelpers
     {
         ArgumentNullException.ThrowIfNull(handlers);
         ArgumentNullException.ThrowIfNull(pathTracker);
-        
+
         if (!skipStartToken && !reader.Read())
             return;
 
