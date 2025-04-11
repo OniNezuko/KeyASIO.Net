@@ -12,13 +12,13 @@ public class ValueHandlerMapping
     private const int MaxPathPartLength = 64;
 
     // 存储路径处理器的数组
-    private readonly List<HandlerEntry> _handlers = new List<HandlerEntry>();
+    private readonly List<HandlerEntry> _handlers = new();
 
     // 预分配的缓冲区，用于转换路径部分
     private readonly byte[] _byteBuffer = new byte[MaxPathPartLength];
 
     // 存储上次处理的值，用于处理相关字段
-    private readonly Dictionary<string, object> _processedValues = new Dictionary<string, object>();
+    private readonly Dictionary<string, object> _processedValues = new();
 
     /// <summary>
     /// 添加路径处理器
@@ -35,12 +35,14 @@ public class ValueHandlerMapping
 
         // 解析路径字符串为路径部分
         var parts = path.Split('.');
-        var entry = new HandlerEntry
+        var entry = new HandlerEntry(parts.Length)
         {
-            PathParts = new byte[parts.Length][],
-            PathLengths = new int[parts.Length],
             Path = path,
-            HandlerType = typeof(T)
+            ExtractorProcessor = new ExtractorProcessor<T>
+            {
+                Extractor = extractor,
+                Processor = processor
+            }
         };
 
         for (int i = 0; i < parts.Length; i++)
@@ -53,13 +55,6 @@ public class ValueHandlerMapping
             Buffer.BlockCopy(_byteBuffer, 0, entry.PathParts[i], 0, byteCount);
             entry.PathLengths[i] = byteCount;
         }
-
-        // 存储强类型处理器
-        entry.ExtractorAndProcessor = new ExtractorProcessor<T>
-        {
-            Extractor = extractor,
-            Processor = processor
-        };
 
         _handlers.Add(entry);
     }
@@ -98,31 +93,25 @@ public class ValueHandlerMapping
 
         foreach (var entry in _handlers)
         {
-            if (IsMatch(entry, pathTracker))
+            if (!IsMatch(entry, pathTracker)) continue;
+
+            var processor = entry.ExtractorProcessor;
+            processor.Extract(ref reader, out var result);
+
+            if (result != null)
             {
-                if (entry.ExtractorAndProcessor is IExtractorProcessor processor)
-                {
-                    processor.Extract(ref reader, out var result);
-
-                    // 存储处理的值
-                    if (result != null)
-                    {
-                        _processedValues[entry.Path] = result;
-                    }
-
-                    // 处理提取的值
-                    processor.Process(result);
-                }
-
-                break;
+                _processedValues[entry.Path] = result;
             }
+
+            processor.Process(result);
+            break;
         }
     }
 
     /// <summary>
     /// 检查路径是否匹配
     /// </summary>
-    private bool IsMatch(HandlerEntry entry, JsonPathTracker pathTracker)
+    private static bool IsMatch(HandlerEntry entry, JsonPathTracker pathTracker)
     {
         if (entry.PathParts.Length != pathTracker.Depth)
             return false;
@@ -147,7 +136,7 @@ public class ValueHandlerMapping
     private interface IExtractorProcessor
     {
         void Extract(ref Utf8JsonReader reader, out object? result);
-        void Process(object value);
+        void Process(object? value);
     }
 
     /// <summary>
@@ -155,8 +144,8 @@ public class ValueHandlerMapping
     /// </summary>
     private class ExtractorProcessor<T> : IExtractorProcessor
     {
-        public JsonHelpers.ValueExtractor<T> Extractor { get; set; }
-        public JsonHelpers.ValueProcessor<T> Processor { get; set; }
+        public required JsonHelpers.ValueExtractor<T> Extractor { get; init; }
+        public required JsonHelpers.ValueProcessor<T> Processor { get; init; }
 
         public void Extract(ref Utf8JsonReader reader, out object? result)
         {
@@ -187,12 +176,11 @@ public class ValueHandlerMapping
     /// <summary>
     /// 处理器条目
     /// </summary>
-    private class HandlerEntry
+    private class HandlerEntry(int partsLength)
     {
-        public byte[][] PathParts { get; set; }
-        public int[] PathLengths { get; set; }
-        public string Path { get; set; }
-        public Type HandlerType { get; set; }
-        public object ExtractorAndProcessor { get; set; }
+        public byte[][] PathParts { get; } = new byte[partsLength][];
+        public int[] PathLengths { get; } = new int[partsLength]; // 可以优化，因为PathParts的长度是准确的
+        public required string Path { get; init; }
+        public required IExtractorProcessor ExtractorProcessor { get; init; }
     }
 }

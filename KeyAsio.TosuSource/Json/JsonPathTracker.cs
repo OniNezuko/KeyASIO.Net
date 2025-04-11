@@ -15,21 +15,11 @@ public class JsonPathTracker
     // 存储路径部分的数组，使用字节数组而不是ReadOnlyMemory
     private readonly byte[]?[] _pathParts = new byte[MaxDepth][];
 
-    // 存储每个路径部分的长度
+    // 存储每个路径部分的长度，可以优化，因为_pathParts的长度是准确的
     private readonly int[] _pathLengths = new int[MaxDepth];
 
     // 当前路径深度
     private int _depth = 0;
-
-    /// <summary>
-    /// 重置追踪器状态，使其可以被重用
-    /// </summary>
-    public void Reset()
-    {
-        _depth = 0;
-        // 注意：我们不需要清除_pathParts和_pathLengths的内容
-        // 因为它们会在下一次使用时被覆盖
-    }
 
     /// <summary>
     /// 获取指定索引处的路径部分
@@ -46,13 +36,17 @@ public class JsonPathTracker
     }
 
     /// <summary>
+    /// 获取当前路径的深度
+    /// </summary>
+    public int Depth => _depth;
+
+    /// <summary>
     /// 将属性名推入路径栈
     /// </summary>
     /// <param name="propertyName">属性名</param>
     public void PushProperty(ReadOnlySpan<byte> propertyName)
     {
         if (_depth >= MaxDepth) return;
-        // 确保我们有足够的空间来存储这个属性名
         int length = propertyName.Length;
 
         // 如果当前深度没有分配数组，或者数组太小，则分配新数组
@@ -79,13 +73,19 @@ public class JsonPathTracker
     }
 
     /// <summary>
-    /// 获取当前路径的深度
+    /// 重置追踪器状态，使其可以被重用
     /// </summary>
-    public int Depth => _depth;
+    public void Reset()
+    {
+        _depth = 0;
+        // 注意：我们不需要清除_pathParts和_pathLengths的内容
+        // 因为它们会在下一次使用时被覆盖
+    }
 
     /// <summary>
     /// 获取当前完整路径（仅用于调试显示）
     /// </summary>
+    [DebuggerStepThrough]
     internal string DebuggerGetCurrentPath()
     {
         if (_depth == 0) return string.Empty;
@@ -99,6 +99,7 @@ public class JsonPathTracker
                 sb.Append(Encoding.UTF8.GetString(_pathParts[i], 0, _pathLengths[i]));
             }
         }
+
         return sb.ToString();
     }
 }

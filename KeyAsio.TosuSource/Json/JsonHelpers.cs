@@ -26,7 +26,8 @@ public static class JsonHelpers
     /// 委托定义：处理提取的值
     /// </summary>
     /// <typeparam name="T">值的类型</typeparam>
-    /// <param name="result">提取的值和有效标志</param>
+    /// <param name="value">提取的值，如果无效则为默认值</param>
+    /// <param name="hasValue">指示值是否有效的标志</param>
     public delegate void ValueProcessor<T>(T? value, bool hasValue);
 
     /// <summary>
@@ -139,7 +140,7 @@ public static class JsonHelpers
     /// 跳过任意JSON值（对象、数组或基本类型）
     /// </summary>
     /// <param name="reader">JSON读取器</param>
-    public static void SkipValue(ref Utf8JsonReader reader)
+    private static void SkipValue(ref Utf8JsonReader reader)
     {
         int depth = 1;
         while (depth > 0 && reader.Read())
