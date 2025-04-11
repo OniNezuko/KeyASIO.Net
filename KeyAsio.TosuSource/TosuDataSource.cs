@@ -192,7 +192,6 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
 
     private void InitializeValueHandlers()
     {
-        // 添加路径处理器，只需在构造函数中注册一次
         _valueHandlers.AddHandler("state.number", (ref Utf8JsonReader r, out OsuMemoryStatus value) =>
         {
             if (r.TokenType == JsonTokenType.Number)

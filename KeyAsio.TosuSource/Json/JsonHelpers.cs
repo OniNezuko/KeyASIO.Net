@@ -88,17 +88,17 @@ public static class JsonHelpers
                 case JsonTokenType.StartObject:
                 case JsonTokenType.StartArray:
                     depth++;
-                    if (isObject && reader.TokenType == JsonTokenType.StartObject)
+                    if (reader.TokenType == JsonTokenType.StartObject)
                     {
-                        // 只对对象内的对象递归解析
+                        // 对象内的对象或数组元素内的对象都需要递归解析
                         ParseElement(ref reader, handlers, pathTracker, true);
                         depth--; // 减少深度，因为递归已经处理了这个对象
                     }
-                    else if (isObject && reader.TokenType == JsonTokenType.StartArray)
+                    else if (reader.TokenType == JsonTokenType.StartArray)
                     {
-                        // 跳过数组，暂时不处理
-                        SkipValue(ref reader);
-                        depth--; // 减少深度，因为SkipValue已经处理了这个数组
+                        // 处理数组
+                        ParseArray(ref reader, handlers, pathTracker);
+                        depth--; // 减少深度，因为ParseArray已经处理了这个数组
                         if (isObject)
                         {
                             pathTracker.Pop(); // 弹出当前Array属性
@@ -127,10 +127,51 @@ public static class JsonHelpers
                     }
                     else
                     {
-                        // 数组元素处理（如果需要）
+                        // 数组元素处理
+                        pathTracker.PushArrayIndex(arrayIndex);
+                        handlers.InvokeHandler(pathTracker, ref reader);
+                        pathTracker.Pop();
                         arrayIndex++;
                     }
 
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 解析JSON数组
+    /// </summary>
+    private static void ParseArray(ref Utf8JsonReader reader, ValueHandlerMapping handlers, JsonPathTracker pathTracker)
+    {
+        int arrayIndex = 0;
+        int depth = 1;
+
+        while (depth > 0 && reader.Read())
+        {
+            switch (reader.TokenType)
+            {
+                case JsonTokenType.StartObject:
+                    pathTracker.PushArrayIndex(arrayIndex);
+                    ParseElement(ref reader, handlers, pathTracker, true);
+                    //pathTracker.Pop();
+                    arrayIndex++;
+                    break;
+
+                case JsonTokenType.StartArray:
+                    depth++;
+                    break;
+
+                case JsonTokenType.EndArray:
+                    depth--;
+                    break;
+
+                default:
+                    // 处理基本类型的数组元素
+                    pathTracker.PushArrayIndex(arrayIndex);
+                    handlers.InvokeHandler(pathTracker, ref reader);
+                    pathTracker.Pop();
+                    arrayIndex++;
                     break;
             }
         }

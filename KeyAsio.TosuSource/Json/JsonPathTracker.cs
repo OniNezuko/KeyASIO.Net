@@ -18,6 +18,9 @@ public class JsonPathTracker
     // 存储每个路径部分的长度，可以优化，因为_pathParts的长度是准确的
     private readonly int[] _pathLengths = new int[MaxDepth];
 
+    // 存储数组索引，-1表示不是数组元素
+    private readonly int[] _arrayIndices = new int[MaxDepth];
+
     // 当前路径深度
     private int _depth = 0;
 
@@ -33,6 +36,17 @@ public class JsonPathTracker
             if (index >= _depth || _pathParts[index] == null) return default;
             return new ReadOnlySpan<byte>(_pathParts[index], 0, _pathLengths[index]);
         }
+    }
+
+    /// <summary>
+    /// 获取指定索引处的数组索引
+    /// </summary>
+    /// <param name="index">索引</param>
+    /// <returns>数组索引，-1表示不是数组元素</returns>
+    public int GetArrayIndex(int index)
+    {
+        if (index >= _depth) return -1;
+        return _arrayIndices[index];
     }
 
     /// <summary>
@@ -58,6 +72,20 @@ public class JsonPathTracker
         // 复制到存储数组
         propertyName.CopyTo(_pathParts[_depth].AsSpan(0, length));
         _pathLengths[_depth] = length;
+        _arrayIndices[_depth] = -1; // 设置为非数组元素
+        _depth++;
+    }
+
+    /// <summary>
+    /// 将数组索引推入路径栈
+    /// </summary>
+    /// <param name="index">数组索引</param>
+    public void PushArrayIndex(int index)
+    {
+        if (_depth >= MaxDepth) return;
+        _pathParts[_depth] = null;
+        _pathLengths[_depth] = 0;
+        _arrayIndices[_depth] = index;
         _depth++;
     }
 
@@ -78,7 +106,7 @@ public class JsonPathTracker
     public void Reset()
     {
         _depth = 0;
-        // 注意：我们不需要清除_pathParts和_pathLengths的内容
+        // 注意：我们不需要清除_pathParts、_pathLengths和_arrayIndices的内容
         // 因为它们会在下一次使用时被覆盖
     }
 
@@ -93,8 +121,13 @@ public class JsonPathTracker
         var sb = new StringBuilder();
         for (int i = 0; i < _depth; i++)
         {
-            if (i > 0) sb.Append('.');
-            if (_pathParts[i] != null)
+            if (i > 0 && _arrayIndices[i] == -1) sb.Append('.');
+            
+            if (_arrayIndices[i] >= 0)
+            {
+                sb.Append('[').Append(_arrayIndices[i]).Append(']');
+            }
+            else if (_pathParts[i] != null)
             {
                 sb.Append(Encoding.UTF8.GetString(_pathParts[i], 0, _pathLengths[i]));
             }

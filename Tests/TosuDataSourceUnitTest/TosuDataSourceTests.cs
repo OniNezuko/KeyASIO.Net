@@ -96,7 +96,16 @@ public class TosuDataSourceTests
     public void TestJsonParsing()
     {
         var jsonString = """
-                         {
+                         {,
+                             "testArray2": [1,2,5,6],
+                             "testArray": [
+                                 {
+                                     "test": 1
+                                 },
+                                 {
+                                     "test": 2
+                                 }
+                             ],
                              "client": "lazer",
                              "server": "ppy.sh",
                              "state": {
