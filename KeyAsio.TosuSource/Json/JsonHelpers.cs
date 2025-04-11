@@ -29,7 +29,8 @@ public static class JsonHelpers
     /// <param name="handlers">值处理器映射</param>
     public static void ParseDocument(ref Utf8JsonReader reader, ValueHandlerMapping handlers)
     {
-        // 创建路径追踪器
+        ArgumentNullException.ThrowIfNull(handlers);
+        
         var pathTracker = new JsonPathTracker();
         ParseElement(ref reader, handlers, pathTracker, false);
     }
@@ -44,6 +45,9 @@ public static class JsonHelpers
     private static void ParseElement(ref Utf8JsonReader reader, ValueHandlerMapping handlers,
         JsonPathTracker pathTracker, bool skipStartToken)
     {
+        ArgumentNullException.ThrowIfNull(handlers);
+        ArgumentNullException.ThrowIfNull(pathTracker);
+        
         if (!skipStartToken && !reader.Read())
             return;
 
@@ -123,22 +127,20 @@ public static class JsonHelpers
     /// <param name="reader">JSON读取器</param>
     public static void SkipValue(ref Utf8JsonReader reader)
     {
-        if (reader.TokenType is JsonTokenType.StartObject or JsonTokenType.StartArray)
+        int depth = 1;
+        while (depth > 0 && reader.Read())
         {
-            int depth = 1;
-
-            while (depth > 0 && reader.Read())
+            switch (reader.TokenType)
             {
-                if (reader.TokenType is JsonTokenType.StartObject or JsonTokenType.StartArray)
-                {
+                case JsonTokenType.StartObject:
+                case JsonTokenType.StartArray:
                     depth++;
-                }
-                else if (reader.TokenType is JsonTokenType.EndObject or JsonTokenType.EndArray)
-                {
+                    break;
+                case JsonTokenType.EndObject:
+                case JsonTokenType.EndArray:
                     depth--;
-                }
+                    break;
             }
         }
-        // 原始值类型不需要额外跳过操作
     }
 }

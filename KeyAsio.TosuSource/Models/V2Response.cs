@@ -2,58 +2,58 @@
 
 namespace KeyAsio.TosuSource.Models;
 
-public partial class V2Response
+public class V2Response
 {
     [JsonPropertyName("state")]
-    public State State { get; set; }
+    public State State { get; set; } = new();
 
     [JsonPropertyName("session")]
-    public Session Session { get; set; }
+    public Session Session { get; set; } = new();
 
     [JsonPropertyName("settings")]
-    public Settings Settings { get; set; }
+    public Settings Settings { get; set; } = new();
 
     [JsonPropertyName("profile")]
-    public Profile Profile { get; set; }
+    public Profile Profile { get; set; } = new();
 
     [JsonPropertyName("beatmap")]
-    public Beatmap Beatmap { get; set; }
+    public Beatmap Beatmap { get; set; } = new();
 
     [JsonPropertyName("play")]
-    public Play Play { get; set; }
+    public Play Play { get; set; } = new();
 
     [JsonPropertyName("leaderboard")]
-    public object[] Leaderboard { get; set; }
+    public object[] Leaderboard { get; set; } = Array.Empty<object>();
 
     [JsonPropertyName("performance")]
-    public Performance Performance { get; set; }
+    public Performance Performance { get; set; } = new();
 
     [JsonPropertyName("resultsScreen")]
-    public ResultsScreen ResultsScreen { get; set; }
+    public ResultsScreen ResultsScreen { get; set; } = new();
 
     [JsonPropertyName("folders")]
-    public Folders Folders { get; set; }
+    public Folders Folders { get; set; } = new();
 
     [JsonPropertyName("files")]
-    public Files Files { get; set; }
+    public Files Files { get; set; } = new();
 
     [JsonPropertyName("directPath")]
-    public DirectPath DirectPath { get; set; }
+    public DirectPath DirectPath { get; set; } = new();
 
     [JsonPropertyName("tourney")]
-    public Tourney Tourney { get; set; }
+    public Tourney Tourney { get; set; } = new();
 }
 
-public partial class Beatmap
+public class Beatmap
 {
     [JsonPropertyName("time")]
-    public Time Time { get; set; }
+    public Time Time { get; set; } = new();
 
     [JsonPropertyName("status")]
-    public Status Status { get; set; }
+    public Status Status { get; set; } = new();
 
     [JsonPropertyName("checksum")]
-    public string Checksum { get; set; }
+    public string Checksum { get; set; } = string.Empty;
 
     [JsonPropertyName("id")]
     public long Id { get; set; }
@@ -62,28 +62,28 @@ public partial class Beatmap
     public long Set { get; set; }
 
     [JsonPropertyName("artist")]
-    public string Artist { get; set; }
+    public string Artist { get; set; } = string.Empty;
 
     [JsonPropertyName("artistUnicode")]
-    public string ArtistUnicode { get; set; }
+    public string ArtistUnicode { get; set; } = string.Empty;
 
     [JsonPropertyName("title")]
-    public string Title { get; set; }
+    public string Title { get; set; } = string.Empty;
 
     [JsonPropertyName("titleUnicode")]
-    public string TitleUnicode { get; set; }
+    public string TitleUnicode { get; set; } = string.Empty;
 
     [JsonPropertyName("mapper")]
-    public string Mapper { get; set; }
+    public string Mapper { get; set; } = string.Empty;
 
     [JsonPropertyName("version")]
-    public string Version { get; set; }
+    public string Version { get; set; } = string.Empty;
 
     [JsonPropertyName("stats")]
-    public Stats Stats { get; set; }
+    public Stats Stats { get; set; } = new();
 }
 
-public partial class Stats
+public class Stats
 {
     [JsonPropertyName("stars")]
     public Stars Stars { get; set; }
@@ -110,7 +110,7 @@ public partial class Stats
     public long MaxCombo { get; set; }
 }
 
-public partial class Ar
+public class Ar
 {
     [JsonPropertyName("original")]
     public long Original { get; set; }
@@ -119,7 +119,7 @@ public partial class Ar
     public long Converted { get; set; }
 }
 
-public partial class Bpm
+public class Bpm
 {
     [JsonPropertyName("common")]
     public long Common { get; set; }
@@ -131,7 +131,7 @@ public partial class Bpm
     public long Max { get; set; }
 }
 
-public partial class Objects
+public class Objects
 {
     [JsonPropertyName("circles")]
     public long Circles { get; set; }
@@ -149,7 +149,7 @@ public partial class Objects
     public long Total { get; set; }
 }
 
-public partial class Stars
+public class Stars
 {
     [JsonPropertyName("live")]
     public long Live { get; set; }
@@ -158,13 +158,13 @@ public partial class Stars
     public long Total { get; set; }
 }
 
-public partial class Status
+public class Status
 {
     [JsonPropertyName("number")]
     public long Number { get; set; }
 }
 
-public partial class Time
+public class Time
 {
     [JsonPropertyName("live")]
     public int Live { get; set; }
@@ -176,76 +176,76 @@ public partial class Time
     public int LastObject { get; set; }
 }
 
-public partial class DirectPath
+public class DirectPath
 {
     [JsonPropertyName("beatmapFile")]
-    public string BeatmapFile { get; set; }
+    public string BeatmapFile { get; set; } = string.Empty;
 
     [JsonPropertyName("beatmapBackground")]
-    public string BeatmapBackground { get; set; }
+    public string BeatmapBackground { get; set; } = string.Empty;
 
     [JsonPropertyName("beatmapAudio")]
-    public string BeatmapAudio { get; set; }
+    public string BeatmapAudio { get; set; } = string.Empty;
 
     [JsonPropertyName("beatmapFolder")]
-    public string BeatmapFolder { get; set; }
+    public string BeatmapFolder { get; set; } = string.Empty;
 
     [JsonPropertyName("skinFolder")]
-    public string SkinFolder { get; set; }
+    public string SkinFolder { get; set; } = string.Empty;
 }
 
-public partial class Files
+public class Files
 {
     [JsonPropertyName("beatmap")]
-    public string Beatmap { get; set; }
+    public string Beatmap { get; set; } = string.Empty;
 
     [JsonPropertyName("background")]
-    public string Background { get; set; }
+    public string Background { get; set; } = string.Empty;
 
     [JsonPropertyName("audio")]
-    public string Audio { get; set; }
+    public string Audio { get; set; } = string.Empty;
 }
 
-public partial class Folders
+public class Folders
 {
     [JsonPropertyName("game")]
-    public string Game { get; set; }
+    public string Game { get; set; } = string.Empty;
 
     [JsonPropertyName("skin")]
-    public string Skin { get; set; }
+    public string Skin { get; set; } = string.Empty;
 
     [JsonPropertyName("songs")]
-    public string Songs { get; set; }
+    public string Songs { get; set; } = string.Empty;
 
     [JsonPropertyName("beatmap")]
-    public string Beatmap { get; set; }
+    public string Beatmap { get; set; } = string.Empty;
 }
 
-public partial class Performance
+public class Performance
 {
     [JsonPropertyName("accuracy")]
-    public Dictionary<string, long> Accuracy { get; set; }
+    public Dictionary<string, long> Accuracy { get; set; } = new();
 
     [JsonPropertyName("graph")]
-    public Graph Graph { get; set; }
+    public Graph Graph { get; set; } = new();
 }
 
-public partial class Graph
+public class Graph
 {
     [JsonPropertyName("series")]
-    public object[] Series { get; set; }
+    public object[] Series { get; set; } = Array.Empty<object>();
 
     [JsonPropertyName("xaxis")]
-    public object[] Xaxis { get; set; }
+    public object[] Xaxis { get; set; } = Array.Empty<object>();
 }
 
-public partial class Play
+public class Play
 {
     [JsonPropertyName("playerName")]
-    public string PlayerName { get; set; }
+    public string PlayerName { get; set; } = string.Empty;
 
     [JsonPropertyName("mode")]
-    public State Mode { get; set; }
+    public State Mode { get; set; } = new();
 
     [JsonPropertyName("score")]
     public long Score { get; set; }
@@ -254,31 +254,31 @@ public partial class Play
     public long Accuracy { get; set; }
 
     [JsonPropertyName("healthBar")]
-    public HealthBar HealthBar { get; set; }
+    public HealthBar HealthBar { get; set; } = new();
 
     [JsonPropertyName("hits")]
-    public Hits Hits { get; set; }
+    public Hits Hits { get; set; } = new();
 
     [JsonPropertyName("hitErrorArray")]
-    public object[] HitErrorArray { get; set; }
+    public object[] HitErrorArray { get; set; } = Array.Empty<object>();
 
     [JsonPropertyName("combo")]
-    public Combo Combo { get; set; }
+    public Combo Combo { get; set; } = new();
 
     [JsonPropertyName("mods")]
-    public State Mods { get; set; }
+    public State Mods { get; set; } = new();
 
     [JsonPropertyName("rank")]
-    public Rank Rank { get; set; }
+    public Rank Rank { get; set; } = new();
 
     [JsonPropertyName("pp")]
-    public PlayPp Pp { get; set; }
+    public PlayPp Pp { get; set; } = new();
 
     [JsonPropertyName("unstableRate")]
     public long UnstableRate { get; set; }
 }
 
-public partial class Combo
+public class Combo
 {
     [JsonPropertyName("current")]
     public int Current { get; set; }
@@ -287,7 +287,7 @@ public partial class Combo
     public int Max { get; set; }
 }
 
-public partial class HealthBar
+public class HealthBar
 {
     [JsonPropertyName("normal")]
     public long Normal { get; set; }
@@ -296,7 +296,7 @@ public partial class HealthBar
     public long Smooth { get; set; }
 }
 
-public partial class Hits
+public class Hits
 {
     [JsonPropertyName("0")]
     public long The0 { get; set; }
@@ -321,7 +321,7 @@ public partial class Hits
     public long? SliderBreaks { get; set; }
 }
 
-public partial class State
+public class State
 {
     [JsonPropertyName("number")]
     public long Number { get; set; }
@@ -330,7 +330,7 @@ public partial class State
     public string Name { get; set; }
 }
 
-public partial class PlayPp
+public class PlayPp
 {
     [JsonPropertyName("current")]
     public long Current { get; set; }
@@ -342,7 +342,7 @@ public partial class PlayPp
     public long MaxAchievedThisPlay { get; set; }
 }
 
-public partial class Rank
+public class Rank
 {
     [JsonPropertyName("current")]
     public string Current { get; set; }
@@ -351,7 +351,7 @@ public partial class Rank
     public string MaxThisPlay { get; set; }
 }
 
-public partial class Profile
+public class Profile
 {
     [JsonPropertyName("userStatus")]
     public State UserStatus { get; set; }
@@ -393,7 +393,7 @@ public partial class Profile
     public string BackgroundColour { get; set; }
 }
 
-public partial class ResultsScreen
+public class ResultsScreen
 {
     [JsonPropertyName("playerName")]
     public string PlayerName { get; set; }
@@ -426,7 +426,7 @@ public partial class ResultsScreen
     public string CreatedAt { get; set; }
 }
 
-public partial class ResultsScreenPp
+public class ResultsScreenPp
 {
     [JsonPropertyName("current")]
     public long Current { get; set; }
@@ -435,7 +435,7 @@ public partial class ResultsScreenPp
     public long Fc { get; set; }
 }
 
-public partial class Session
+public class Session
 {
     [JsonPropertyName("playTime")]
     public long PlayTime { get; set; }
@@ -444,7 +444,7 @@ public partial class Session
     public long PlayCount { get; set; }
 }
 
-public partial class Settings
+public class Settings
 {
     [JsonPropertyName("interfaceVisible")]
     public bool InterfaceVisible { get; set; }
@@ -504,7 +504,7 @@ public partial class Settings
     public Keybinds Keybinds { get; set; }
 }
 
-public partial class Audio
+public class Audio
 {
     [JsonPropertyName("ignoreBeatmapSounds")]
     public bool IgnoreBeatmapSounds { get; set; }
@@ -519,13 +519,13 @@ public partial class Audio
     public Offset Offset { get; set; }
 }
 
-public partial class Offset
+public class Offset
 {
     [JsonPropertyName("universal")]
     public long Universal { get; set; }
 }
 
-public partial class Volume
+public class Volume
 {
     [JsonPropertyName("master")]
     public long Master { get; set; }
@@ -537,7 +537,7 @@ public partial class Volume
     public long Effect { get; set; }
 }
 
-public partial class Background
+public class Background
 {
     [JsonPropertyName("dim")]
     public long Dim { get; set; }
@@ -549,7 +549,7 @@ public partial class Background
     public bool Storyboard { get; set; }
 }
 
-public partial class SettingsClient
+public class SettingsClient
 {
     [JsonPropertyName("updateAvailable")]
     public bool UpdateAvailable { get; set; }
@@ -561,7 +561,7 @@ public partial class SettingsClient
     public string Version { get; set; }
 }
 
-public partial class Cursor
+public class Cursor
 {
     [JsonPropertyName("useSkinCursor")]
     public bool UseSkinCursor { get; set; }
@@ -573,7 +573,7 @@ public partial class Cursor
     public long Size { get; set; }
 }
 
-public partial class Keybinds
+public class Keybinds
 {
     [JsonPropertyName("osu")]
     public Osu Osu { get; set; }
@@ -588,7 +588,7 @@ public partial class Keybinds
     public string QuickRetry { get; set; }
 }
 
-public partial class Fruits
+public class Fruits
 {
     [JsonPropertyName("k1")]
     public string K1 { get; set; }
@@ -600,7 +600,7 @@ public partial class Fruits
     public string Dash { get; set; }
 }
 
-public partial class Osu
+public class Osu
 {
     [JsonPropertyName("k1")]
     public string K1 { get; set; }
@@ -612,7 +612,7 @@ public partial class Osu
     public string SmokeKey { get; set; }
 }
 
-public partial class Taiko
+public class Taiko
 {
     [JsonPropertyName("innerLeft")]
     public string InnerLeft { get; set; }
@@ -627,7 +627,7 @@ public partial class Taiko
     public string OuterRight { get; set; }
 }
 
-public partial class Leaderboard
+public class Leaderboard
 {
     [JsonPropertyName("visible")]
     public bool Visible { get; set; }
@@ -636,7 +636,7 @@ public partial class Leaderboard
     public State Type { get; set; }
 }
 
-public partial class Mania
+public class Mania
 {
     [JsonPropertyName("speedBPMScale")]
     public bool SpeedBpmScale { get; set; }
@@ -645,7 +645,7 @@ public partial class Mania
     public bool UsePerBeatmapSpeedScale { get; set; }
 }
 
-public partial class Mouse
+public class Mouse
 {
     [JsonPropertyName("rawInput")]
     public bool RawInput { get; set; }
@@ -660,7 +660,7 @@ public partial class Mouse
     public long Sensitivity { get; set; }
 }
 
-public partial class Resolution
+public class Resolution
 {
     [JsonPropertyName("fullscreen")]
     public bool Fullscreen { get; set; }
@@ -678,7 +678,7 @@ public partial class Resolution
     public long HeightFullscreen { get; set; }
 }
 
-public partial class ScoreMeter
+public class ScoreMeter
 {
     [JsonPropertyName("type")]
     public State Type { get; set; }
@@ -687,7 +687,7 @@ public partial class ScoreMeter
     public long Size { get; set; }
 }
 
-public partial class Skin
+public class Skin
 {
     [JsonPropertyName("useDefaultSkinInEditor")]
     public bool UseDefaultSkinInEditor { get; set; }
@@ -705,7 +705,7 @@ public partial class Skin
     public string Name { get; set; }
 }
 
-public partial class Tourney
+public class Tourney
 {
     [JsonPropertyName("scoreVisible")]
     public bool ScoreVisible { get; set; }
@@ -735,7 +735,7 @@ public partial class Tourney
     public ClientElement[] Clients { get; set; }
 }
 
-public partial class ClientElement
+public class ClientElement
 {
     [JsonPropertyName("team")]
     public string Team { get; set; }
@@ -747,7 +747,7 @@ public partial class ClientElement
     public Play Play { get; set; }
 }
 
-public partial class User
+public class User
 {
     [JsonPropertyName("id")]
     public long Id { get; set; }
@@ -774,7 +774,7 @@ public partial class User
     public long TotalPp { get; set; }
 }
 
-public partial class Points
+public class Points
 {
     [JsonPropertyName("left")]
     public long Left { get; set; }
@@ -783,7 +783,7 @@ public partial class Points
     public long Right { get; set; }
 }
 
-public partial class Team
+public class Team
 {
     [JsonPropertyName("left")]
     public string Left { get; set; }

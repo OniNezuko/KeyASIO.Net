@@ -29,8 +29,9 @@ public class ValueHandlerMapping
     public void AddHandler<T>(string path, JsonHelpers.ValueExtractor<T> extractor,
         JsonHelpers.ValueProcessor<T> processor)
     {
-        if (string.IsNullOrEmpty(path) || extractor == null)
-            return;
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(extractor);
+        ArgumentNullException.ThrowIfNull(processor);
 
         // 解析路径字符串为路径部分
         var parts = path.Split('.');
@@ -71,12 +72,11 @@ public class ValueHandlerMapping
     /// <returns>上次处理的值</returns>
     public T GetLastProcessedValue<T>(string path)
     {
-        if (_processedValues.TryGetValue(path, out var value) && value is T typedValue)
-        {
-            return typedValue;
-        }
+        ArgumentNullException.ThrowIfNull(path);
 
-        return default;
+        return _processedValues.TryGetValue(path, out var value) && value is T typedValue 
+            ? typedValue 
+            : default!;
     }
 
     /// <summary>
@@ -94,6 +94,8 @@ public class ValueHandlerMapping
     /// <param name="reader">JSON读取器</param>
     public void InvokeHandler(JsonPathTracker pathTracker, ref Utf8JsonReader reader)
     {
+        ArgumentNullException.ThrowIfNull(pathTracker);
+
         foreach (var entry in _handlers)
         {
             if (IsMatch(entry, pathTracker))
