@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace KeyAsio.TosuSource.Json;
@@ -19,14 +20,14 @@ public static class JsonHelpers
     /// <typeparam name="T">值的类型</typeparam>
     /// <param name="reader">JSON读取器，定位在值上</param>
     /// <returns>处理结果，包含值和是否有值的标志</returns>
-    public delegate (T value, bool hasValue) ValueExtractor<T>(ref Utf8JsonReader reader);
+    public delegate bool ValueExtractor<T>(ref Utf8JsonReader reader, [NotNullWhen(true)] out T value);
 
     /// <summary>
     /// 委托定义：处理提取的值
     /// </summary>
     /// <typeparam name="T">值的类型</typeparam>
     /// <param name="result">提取的值和有效标志</param>
-    public delegate void ValueProcessor<T>((T value, bool hasValue) result);
+    public delegate void ValueProcessor<T>(T? value, bool hasValue);
 
     /// <summary>
     /// 解析整个JSON文档，将值分派给相应的处理器

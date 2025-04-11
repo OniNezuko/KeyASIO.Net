@@ -193,166 +193,164 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
     private void InitializeValueHandlers()
     {
         // 添加路径处理器，只需在构造函数中注册一次
-        _valueHandlers.AddHandler("state.number", (ref Utf8JsonReader r) =>
+        _valueHandlers.AddHandler("state.number", (ref Utf8JsonReader r, out OsuMemoryStatus value) =>
         {
             if (r.TokenType == JsonTokenType.Number)
             {
-                long stateNumber = r.GetInt64();
-                return (value: ConvertStateToOsuStatus(stateNumber), hasValue: true);
+                value = ConvertStateToOsuStatus(r.GetInt64());
+                return true;
             }
 
-            return (value: OsuMemoryStatus.NotRunning, hasValue: false);
-        }, value =>
+            value = OsuMemoryStatus.NotRunning;
+            return false;
+        }, (value, hasValue) =>
         {
-            if (value.hasValue && _currentOsuStatus != value.value)
-            {
-                _currentOsuStatus = value.value;
-                _memoryReadObject.OsuStatus = value.value;
-            }
+            if (!hasValue || _currentOsuStatus == value) return;
+            _currentOsuStatus = value;
+            _memoryReadObject.OsuStatus = value;
         });
 
-        _valueHandlers.AddHandler("directPath.beatmapFolder", (ref Utf8JsonReader r) =>
+        _valueHandlers.AddHandler("directPath.beatmapFolder", (ref Utf8JsonReader r, out string value) =>
         {
             if (r.TokenType == JsonTokenType.String)
             {
-                return (value: r.GetString(), hasValue: true);
+                value = r.GetString() ?? string.Empty;
+                return true;
             }
 
-            return (value: null, hasValue: false);
-        }, value =>
+            value = string.Empty;
+            return false;
+        }, (value, hasValue) =>
         {
             // 处理在beatmapFile处理程序中完成
         });
 
-        _valueHandlers.AddHandler("directPath.beatmapFile", (ref Utf8JsonReader r) =>
+        _valueHandlers.AddHandler("directPath.beatmapFile", (ref Utf8JsonReader r, out string value) =>
         {
             if (r.TokenType == JsonTokenType.String)
             {
-                string fullPath = r.GetString();
+                string? fullPath = r.GetString();
                 if (!string.IsNullOrEmpty(fullPath))
                 {
-                    return (value: Path.GetFileName(fullPath), hasValue: true);
+                    value = Path.GetFileName(fullPath);
+                    return true;
                 }
             }
 
-            return (value: null, hasValue: false);
-        }, value =>
+            value = string.Empty;
+            return false;
+        }, (value, hasValue) =>
         {
-            // 从已处理的值中获取文件夹和文件名
-            string folder = _valueHandlers.GetLastProcessedValue<string>("directPath.beatmapFolder");
-            string file = value.value;
+            if (!hasValue || string.IsNullOrEmpty(value)) return;
 
-            if (!string.IsNullOrEmpty(folder) && !string.IsNullOrEmpty(file))
-            {
-                var newBeatmap = new BeatmapIdentifier(folder, file);
-                if (!newBeatmap.Equals(_currentBeatmap))
-                {
-                    _currentBeatmap = newBeatmap;
-                    _memoryReadObject.BeatmapIdentifier = newBeatmap;
-                }
-            }
+            string folder = _valueHandlers.GetLastProcessedValue<string>("directPath.beatmapFolder");
+            var newBeatmap = new BeatmapIdentifier(folder, value);
+            if (newBeatmap.Equals(_currentBeatmap)) return;
+
+            _currentBeatmap = newBeatmap;
+            _memoryReadObject.BeatmapIdentifier = newBeatmap;
         });
 
-        _valueHandlers.AddHandler("settings.replayUIVisible", (ref Utf8JsonReader r) =>
+        _valueHandlers.AddHandler("settings.replayUIVisible", (ref Utf8JsonReader r, out bool value) =>
         {
             if (r.TokenType is JsonTokenType.True or JsonTokenType.False)
             {
-                return (value: r.GetBoolean(), hasValue: true);
+                value = r.GetBoolean();
+                return true;
             }
 
-            return (value: false, hasValue: false);
-        }, value =>
+            value = false;
+            return false;
+        }, (value, hasValue) =>
         {
-            if (value.hasValue && _isReplay != value.value)
-            {
-                _isReplay = value.value;
-                _memoryReadObject.IsReplay = value.value;
-            }
+            if (!hasValue || _isReplay == value) return;
+            _isReplay = value;
+            _memoryReadObject.IsReplay = value;
         });
 
-        _valueHandlers.AddHandler("play.playerName", (ref Utf8JsonReader r) =>
+        _valueHandlers.AddHandler("play.playerName", (ref Utf8JsonReader r, out string value) =>
         {
             if (r.TokenType == JsonTokenType.String)
             {
-                return (value: r.GetString(), hasValue: true);
+                value = r.GetString() ?? string.Empty;
+                return true;
             }
 
-            return (value: null, hasValue: false);
-        }, value =>
+            value = string.Empty;
+            return false;
+        }, (value, hasValue) =>
         {
-            if (value.hasValue && !string.IsNullOrEmpty(value.value) && _playerName != value.value)
-            {
-                _playerName = value.value;
-                _memoryReadObject.PlayerName = _playerName;
-            }
+            if (!hasValue || string.IsNullOrEmpty(value) || _playerName == value) return;
+            _playerName = value;
+            _memoryReadObject.PlayerName = value;
         });
 
-        _valueHandlers.AddHandler("play.score", (ref Utf8JsonReader r) =>
+        _valueHandlers.AddHandler("play.score", (ref Utf8JsonReader r, out long value) =>
         {
             if (r.TokenType == JsonTokenType.Number)
             {
-                return (value: r.GetInt64(), hasValue: true);
+                value = r.GetInt64();
+                return true;
             }
 
-            return (value: 0L, hasValue: false);
-        }, value =>
+            value = 0;
+            return false;
+        }, (value, hasValue) =>
         {
-            if (value.hasValue && _currentScore != value.value)
-            {
-                _currentScore = value.value;
-                _memoryReadObject.Score = _currentScore;
-            }
+            if (!hasValue || _currentScore == value) return;
+            _currentScore = value;
+            _memoryReadObject.Score = value;
         });
 
-        _valueHandlers.AddHandler("play.mods.number", (ref Utf8JsonReader r) =>
+        _valueHandlers.AddHandler("play.mods.number", (ref Utf8JsonReader r, out int value) =>
         {
             if (r.TokenType == JsonTokenType.Number)
             {
-                return (value: (int)r.GetInt64(), hasValue: true);
+                value = (int)r.GetInt64();
+                return true;
             }
 
-            return (value: 0, hasValue: false);
-        }, value =>
+            value = 0;
+            return false;
+        }, (value, hasValue) =>
         {
-            if (value.hasValue && _currentMods != value.value)
-            {
-                _currentMods = value.value;
-                _memoryReadObject.Mods = (Mods)_currentMods;
-            }
+            if (!hasValue || _currentMods == value) return;
+            _currentMods = value;
+            _memoryReadObject.Mods = (Mods)value;
         });
 
-        _valueHandlers.AddHandler("play.combo.current", (ref Utf8JsonReader r) =>
+        _valueHandlers.AddHandler("play.combo.current", (ref Utf8JsonReader r, out int value) =>
         {
             if (r.TokenType == JsonTokenType.Number)
             {
-                return (value: r.GetInt32(), hasValue: true);
+                value = r.GetInt32();
+                return true;
             }
 
-            return (value: 0, hasValue: false);
-        }, value =>
+            value = 0;
+            return false;
+        }, (value, hasValue) =>
         {
-            if (value.hasValue && _currentCombo != value.value)
-            {
-                _currentCombo = value.value;
-                _memoryReadObject.Combo = _currentCombo;
-            }
+            if (!hasValue || _currentCombo == value) return;
+            _currentCombo = value;
+            _memoryReadObject.Combo = value;
         });
 
-        _valueHandlers.AddHandler("beatmap.time.live", (ref Utf8JsonReader r) =>
+        _valueHandlers.AddHandler("beatmap.time.live", (ref Utf8JsonReader r, out int value) =>
         {
             if (r.TokenType == JsonTokenType.Number)
             {
-                return (value: r.GetInt32(), hasValue: true);
+                value = r.GetInt32();
+                return true;
             }
 
-            return (value: 0, hasValue: false);
-        }, value =>
+            value = 0;
+            return false;
+        }, (value, hasValue) =>
         {
-            if (value.hasValue && _lastPlayTime != value.value)
-            {
-                _lastPlayTime = value.value;
-                _memoryReadObject.PlayingTime = _lastPlayTime;
-            }
+            if (!hasValue || _lastPlayTime == value) return;
+            _lastPlayTime = value;
+            _memoryReadObject.PlayingTime = value;
         });
     }
 

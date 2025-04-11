@@ -248,7 +248,7 @@ public class TosuDataSourceTests
                                  "isBreak": false,
                                  "isConvert": false,
                                  "time": {
-                                     "live": 3030,
+                                     "live": 3031,
                                      "firstObject": 0,
                                      "lastObject": 0,
                                      "mp3Length": 92656
@@ -308,12 +308,12 @@ public class TosuDataSourceTests
                                  }
                              },
                              "play": {
-                                 "playerName": "",
+                                 "playerName": "TestPlayer",
                                  "mode": {
                                      "number": 0,
                                      "name": "osu"
                                  },
-                                 "score": 0,
+                                 "score": 114514,
                                  "accuracy": 100,
                                  "healthBar": {
                                      "normal": 0,
@@ -333,7 +333,7 @@ public class TosuDataSourceTests
                                  },
                                  "hitErrorArray": [],
                                  "combo": {
-                                     "current": 0,
+                                     "current": 233,
                                      "max": 0
                                  },
                                  "mods": {
@@ -510,9 +510,9 @@ public class TosuDataSourceTests
         // 验证结果
         Assert.AreEqual(OsuMemoryStatus.Playing, result.Status);
         Assert.AreEqual("TestPlayer", result.PlayerName);
-        Assert.AreEqual(15000, result.Score);
-        Assert.AreEqual(120, result.Combo);
-        Assert.AreEqual(12345, result.PlayTime);
+        Assert.AreEqual(114514, result.Score);
+        Assert.AreEqual(233, result.Combo);
+        Assert.AreEqual(3031, result.PlayTime);
         Assert.AreEqual("Artist - Song", result.BeatmapFolder);
         Assert.AreEqual("difficulty.osu", result.BeatmapFile);
     }

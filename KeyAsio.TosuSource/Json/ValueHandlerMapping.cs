@@ -74,8 +74,8 @@ public class ValueHandlerMapping
     {
         ArgumentNullException.ThrowIfNull(path);
 
-        return _processedValues.TryGetValue(path, out var value) && value is T typedValue 
-            ? typedValue 
+        return _processedValues.TryGetValue(path, out var value) && value is T typedValue
+            ? typedValue
             : default!;
     }
 
@@ -146,7 +146,7 @@ public class ValueHandlerMapping
     /// </summary>
     private interface IExtractorProcessor
     {
-        void Extract(ref Utf8JsonReader reader, out object result);
+        void Extract(ref Utf8JsonReader reader, out object? result);
         void Process(object value);
     }
 
@@ -158,12 +158,12 @@ public class ValueHandlerMapping
         public JsonHelpers.ValueExtractor<T> Extractor { get; set; }
         public JsonHelpers.ValueProcessor<T> Processor { get; set; }
 
-        public void Extract(ref Utf8JsonReader reader, out object result)
+        public void Extract(ref Utf8JsonReader reader, out object? result)
         {
-            var extracted = Extractor(ref reader);
-            if (extracted.hasValue)
+            var hasValue = Extractor(ref reader, out var result1);
+            if (hasValue)
             {
-                result = extracted.value;
+                result = result1;
             }
             else
             {
@@ -171,15 +171,15 @@ public class ValueHandlerMapping
             }
         }
 
-        public void Process(object value)
+        public void Process(object? value)
         {
             if (value is T typedValue)
             {
-                Processor((typedValue, true));
+                Processor(typedValue, true);
             }
             else
             {
-                Processor((default, false));
+                Processor(default, false);
             }
         }
     }
