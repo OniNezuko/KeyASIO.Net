@@ -210,6 +210,25 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
             _memoryReadObject.OsuStatus = value;
         });
 
+        _valueHandlers.AddHandler("directPath.beatmapFile", (ref Utf8JsonReader r, out string value) =>
+        {
+            if (r.TokenType == JsonTokenType.String)
+            {
+                string? fullPath = r.GetString();
+                if (!string.IsNullOrEmpty(fullPath))
+                {
+                    value = fullPath;
+                    return true;
+                }
+            }
+
+            value = string.Empty;
+            return false;
+        }, (value, hasValue) =>
+        {
+            // 处理在beatmapFolder处理程序中完成
+        });
+
         _valueHandlers.AddHandler("directPath.beatmapFolder", (ref Utf8JsonReader r, out string value) =>
         {
             if (r.TokenType == JsonTokenType.String)
@@ -220,31 +239,14 @@ public class TosuDataSource : ITosuDataSource, IDisposable, IAsyncDisposable
 
             value = string.Empty;
             return false;
-        }, (value, hasValue) =>
+        }, (beatmapFolder, hasValue) =>
         {
-            // 处理在beatmapFile处理程序中完成
-        });
+            if (!hasValue || string.IsNullOrEmpty(beatmapFolder)) return;
 
-        _valueHandlers.AddHandler("directPath.beatmapFile", (ref Utf8JsonReader r, out string value) =>
-        {
-            if (r.TokenType == JsonTokenType.String)
-            {
-                string? fullPath = r.GetString();
-                if (!string.IsNullOrEmpty(fullPath))
-                {
-                    value = Path.GetFileName(fullPath);
-                    return true;
-                }
-            }
+            var beatmapFile = _valueHandlers.GetLastProcessedValue<string>("directPath.beatmapFile");
+            if (beatmapFile == null) return;
 
-            value = string.Empty;
-            return false;
-        }, (value, hasValue) =>
-        {
-            if (!hasValue || string.IsNullOrEmpty(value)) return;
-
-            string folder = _valueHandlers.GetLastProcessedValue<string>("directPath.beatmapFolder");
-            var newBeatmap = new BeatmapIdentifier(folder, value);
+            var newBeatmap = new BeatmapIdentifier(beatmapFolder, beatmapFile);
             if (newBeatmap.Equals(_currentBeatmap)) return;
 
             _currentBeatmap = newBeatmap;

@@ -513,8 +513,8 @@ public class TosuDataSourceTests
         Assert.AreEqual(114514, result.Score);
         Assert.AreEqual(233, result.Combo);
         Assert.AreEqual(3031, result.PlayTime);
-        Assert.AreEqual("Artist - Song", result.BeatmapFolder);
-        Assert.AreEqual("difficulty.osu", result.BeatmapFile);
+        Assert.AreEqual(".", result.BeatmapFolder);
+        Assert.AreEqual(@"7\70\70b3ffe622aa00779374e090440ea049123db3b08428588c8582249d8d1d9287", result.BeatmapFile);
     }
 
     [TestMethod]
